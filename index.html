@@ -1,0 +1,2314 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Evolutio v8</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0a0a12;
+    color: #c8c8d8;
+    font-family: 'Courier New', monospace;
+    display: flex; height: 100vh; overflow: hidden; user-select: none;
+  }
+  #canvas-wrap { flex: 1; position: relative; }
+  canvas#c { display: block; cursor: crosshair; }
+  #minimap {
+    position: absolute; top: 10px; right: 10px;
+    width: 200px; height: 133px;
+    background: rgba(10,10,20,0.9);
+    border: 1px solid #2a2a3a; border-radius: 3px;
+    cursor: pointer;
+  }
+  #pop-graph {
+    position: absolute; bottom: 10px; right: 10px;
+    width: 320px; height: 100px;
+    background: rgba(10,10,20,0.9);
+    border: 1px solid #2a2a3a; border-radius: 3px;
+  }
+  #ui {
+    width: 420px; background: #12121e;
+    border-left: 1px solid #2a2a3a;
+    padding: 14px; overflow-y: auto; font-size: 12px;
+  }
+  #ui::-webkit-scrollbar { width: 8px; }
+  #ui::-webkit-scrollbar-track { background: #0a0a12; }
+  #ui::-webkit-scrollbar-thumb { background: #2a2a3a; border-radius: 4px; }
+
+  #ui h2 {
+    font-size: 11px; color: #6cf;
+    margin: 14px 0 6px; letter-spacing: 1px;
+    text-transform: uppercase;
+    border-bottom: 1px solid #22222e;
+    padding-bottom: 4px;
+  }
+  #ui h2:first-child { margin-top: 0; }
+
+  .row { display: flex; justify-content: space-between; padding: 2px 0; font-size: 11px; }
+  .row span:last-child { color: #9cf; }
+
+  button {
+    background: #1e1e2e; color: #c8c8d8;
+    border: 1px solid #33334a;
+    padding: 6px 10px; cursor: pointer;
+    font-family: inherit; font-size: 11px;
+    margin: 2px 2px 2px 0; transition: 0.15s;
+    border-radius: 3px;
+  }
+  button:hover { background: #2a2a40; border-color: #6cf; color: #6cf; }
+  button.active { background: #6cf; color: #0a0a12; }
+  button.danger:hover { border-color: #f66; color: #f66; }
+
+  .gene-slider { margin: 10px 0; padding: 4px 0; }
+  .gene-slider label {
+    display: flex; justify-content: space-between;
+    color: #999; font-size: 10px;
+    margin-bottom: 4px; letter-spacing: 0.5px;
+  }
+  .gene-slider label b {
+    color: #6cf; font-weight: normal;
+    background: #1a1a2a; padding: 1px 6px;
+    border-radius: 3px;
+  }
+
+  input[type=range] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 18px;
+    background: transparent; outline: none;
+    cursor: pointer; accent-color: #6cf;
+  }
+  input[type=range]::-webkit-slider-runnable-track {
+    width: 100%; height: 6px;
+    background: #2a2a3a; border-radius: 3px;
+    border: 1px solid #1a1a2a;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 16px; height: 16px;
+    background: #6cf; border-radius: 50%;
+    border: 2px solid #12121e;
+    margin-top: -6px; cursor: pointer;
+    box-shadow: 0 0 6px rgba(102,204,255,0.5);
+  }
+  input[type=range]::-moz-range-track {
+    width: 100%; height: 6px;
+    background: #2a2a3a; border-radius: 3px;
+    border: 1px solid #1a1a2a;
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 16px; height: 16px;
+    background: #6cf; border-radius: 50%;
+    border: 2px solid #12121e; cursor: pointer;
+  }
+
+  #selection-info, #mind-panel, #instinct-panel, #genetics-panel {
+    background: #0a0a12; padding: 8px;
+    border: 1px solid #2a2a3a;
+    font-size: 11px; margin-bottom: 8px;
+    line-height: 1.4; border-radius: 3px;
+  }
+  #mind-panel .thought {
+    color: #8a8a9a; font-size: 10px;
+    padding: 1px 0;
+    border-bottom: 1px dotted #1a1a2a;
+  }
+  #mind-panel .thought.pos { color: #6f9; }
+  #mind-panel .thought.neg { color: #f88; }
+
+  .instinct-bar {
+    display: flex; align-items: center; gap: 6px;
+    padding: 2px 0; font-size: 10px;
+  }
+  .instinct-bar .name { width: 100px; color: #888; }
+  .instinct-bar .bar {
+    flex: 1; height: 6px;
+    background: #1a1a2a; border-radius: 3px;
+    overflow: hidden;
+  }
+  .instinct-bar .bar > div { height: 100%; transition: width 0.15s; }
+  .instinct-bar .val { width: 36px; text-align: right; color: #9cf; }
+
+  #tooltip {
+    position: absolute;
+    background: rgba(10,10,20,0.95);
+    border: 1px solid #6cf;
+    padding: 4px 8px; font-size: 10px;
+    pointer-events: none; display: none;
+    z-index: 10; white-space: nowrap;
+    border-radius: 3px;
+  }
+  .hint { color: #555; font-size: 10px; margin: 4px 0; line-height: 1.5; }
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+  .mood-bar {
+    height: 6px; background: #1a1a2a;
+    border-radius: 3px; overflow: hidden;
+    margin-top: 2px; margin-bottom: 4px;
+  }
+  .mood-bar > div { height: 100%; transition: width 0.2s; }
+</style>
+</head>
+<body>
+
+<div id="canvas-wrap">
+  <canvas id="c"></canvas>
+  <canvas id="minimap"></canvas>
+  <canvas id="pop-graph"></canvas>
+  <div id="tooltip"></div>
+</div>
+
+<div id="ui">
+  <h2>Управление</h2>
+  <div>
+    <button id="btnPause">⏸ Пауза</button>
+    <button id="btnReset" class="danger">↻ Сброс</button>
+    <button id="btnFollow">🎯 Следить</button>
+    <button id="btnCenter">🎥 Центр</button>
+  </div>
+  <div>
+    <button id="btnSpawn1">+ 1</button>
+    <button id="btnSpawn2">+ 2 рядом</button>
+    <button id="btnSpawn10">+ 10</button>
+    <button id="btnDelete" class="danger">✕ Удалить</button>
+  </div>
+  <div>
+    <button id="btnSave">💾 Сохранить</button>
+    <button id="btnLoad">📂 Загрузить</button>
+    <button id="btnAddTree">🌳 Дерево</button>
+  </div>
+
+  <div class="hint">
+    Клик — выбрать. Drag — рамка. Shift+Drag — тащить.<br>
+    ПКМ — пан. Колесо — зум. Клик по мини-карте — переход.
+  </div>
+
+  <h2>Экосистема</h2>
+  <div class="stats-grid">
+    <div class="row"><span>Тик</span><span id="statTick">0</span></div>
+    <div class="row"><span>Время суток</span><span id="statDay">☀ День</span></div>
+    <div class="row"><span>Клетки</span><span id="statPop">0</span></div>
+    <div class="row"><span>Деревья</span><span id="statTrees">0</span></div>
+    <div class="row"><span>Плоды</span><span id="statFood">0</span></div>
+    <div class="row"><span>Колонии</span><span id="statColonies">0</span></div>
+    <div class="row"><span>Больные</span><span id="statSick">0</span></div>
+    <div class="row"><span>FPS</span><span id="statFps">0</span></div>
+  </div>
+  <div class="gene-slider">
+    <label>Скорость <b id="speedVal">1.0x</b></label>
+    <input type="range" id="speed" min="0" max="3" value="1" step="0.1">
+  </div>
+
+  <h2>Мутация</h2>
+  <div class="gene-slider">
+    <label>Шанс <b id="mutRateVal">0.20</b></label>
+    <input type="range" id="mutRate" min="0" max="1" value="0.2" step="0.01">
+  </div>
+  <div class="gene-slider">
+    <label>Сила <b id="mutStrVal">0.15</b></label>
+    <input type="range" id="mutStr" min="0" max="0.5" value="0.15" step="0.01">
+  </div>
+
+  <h2>Выделение</h2>
+  <div id="selection-info">Ничего не выделено</div>
+
+  <h2>Инстинкты</h2>
+  <div id="instinct-panel">—</div>
+
+  <h2>Разум</h2>
+  <div id="mind-panel">—</div>
+
+  <h2>Генетика</h2>
+  <div id="genetics-panel">—</div>
+
+  <h2>Гены выделенных</h2>
+  <div id="geneEditor"></div>
+</div>
+
+<script>
+// ================================================================
+// КОНФИГ
+// ================================================================
+const WORLD_W = 3000;
+const WORLD_H = 2000;
+const HASH_CELL = 120;
+const PHEROMONE_GRID = 40;
+const PHEROMONE_DECAY = 0.995;
+const MAX_TREES = 250;
+const MAX_FOOD = 800;
+const DAY_LENGTH = 60;  // секунд на полный цикл
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const minimap = document.getElementById('minimap');
+const mmCtx = minimap.getContext('2d');
+const popGraph = document.getElementById('pop-graph');
+const pgCtx = popGraph.getContext('2d');
+
+function resize() {
+  const wrap = document.getElementById('canvas-wrap');
+  canvas.width = wrap.clientWidth;
+  canvas.height = wrap.clientHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ================================================================
+// ГЕНОМ
+// ================================================================
+const GENE_DEFS = {
+  maxHp:          { min: 20,  max: 200, def: 80,  label: 'Макс HP' },
+  hpRegen:        { min: 0,   max: 2,   def: 0.15, label: 'Реген HP' },
+  maxEnergy:      { min: 20,  max: 300, def: 100, label: 'Макс энергия' },
+  energyRegen:    { min: 0,   max: 2,   def: 0.4, label: 'Реген энергии' },
+  metabolism:     { min: 0.05,max: 1.5, def: 0.25, label: 'Метаболизм' },
+  speed:          { min: 0.1, max: 3,   def: 0.9, label: 'Скорость' },
+  senseRange:     { min: 30,  max: 250, def: 100, label: 'Радиус чувств' },
+  breedThreshold: { min: 0.3, max: 1,   def: 0.65, label: 'Порог размнож.' },
+  breedCost:      { min: 0.1, max: 0.8, def: 0.35,label: 'Цена размнож.' },
+  breedCooldown:  { min: 10,  max: 200, def: 60,  label: 'Кулдаун размн.' },
+  aggression:     { min: 0,   max: 1,   def: 0.15, label: 'Агрессия' },
+  cooperation:    { min: 0,   max: 1,   def: 0.4, label: 'Кооперация' },
+  photosynthesis: { min: 0,   max: 1,   def: 0.35, label: 'Фотосинтез' },
+  predation:      { min: 0,   max: 1,   def: 0.2, label: 'Хищничество' },
+  lifespan:       { min: 200, max: 3000,def: 900, label: 'Прод. жизни' },
+  deathChance:    { min: 0,   max: 0.01,def: 0.0003, label: 'Шанс смерти' },
+  hue:            { min: 0,   max: 360, def: 200, label: 'Цвет' },
+  radius:         { min: 3,   max: 14,  def: 6,   label: 'Размер' },
+
+  hungerDrive:    { min: 0,   max: 1,   def: 0.9, label: 'Голод-драйв' },
+  fearDrive:      { min: 0,   max: 1,   def: 0.8, label: 'Страх-драйв' },
+  breedDrive:     { min: 0,   max: 1,   def: 0.7, label: 'Размнож-драйв' },
+  huntDrive:      { min: 0,   max: 1,   def: 0.3, label: 'Охота-драйв' },
+  wanderDrive:    { min: 0,   max: 1,   def: 0.3, label: 'Блуждание' },
+
+  matePreference: { min: 0,   max: 1,   def: 0.5, label: 'Предпочт. партнёра' },
+  outbreedDrive:  { min: 0,   max: 1,   def: 0.4, label: 'Скрещ. с чужими' },
+  diet:           { min: 0,   max: 1,   def: 0.5, label: 'Диета (0=траво)' },
+
+  pheromoneCap:   { min: 0,   max: 1,   def: 0.3, label: 'Феромоны' },
+  pheromoneType:  { min: 0,   max: 3,   def: 1,   label: 'Тип феромона' },
+  signalType:     { min: 0,   max: 3,   def: 1,   label: 'Тип сигнала' },
+  signalPower:    { min: 0,   max: 1,   def: 0.3, label: 'Сила сигнала' },
+
+  adhesion:       { min: 0,   max: 1,   def: 0.1, label: 'Слипание' },
+  frugality:      { min: 0,   max: 1,   def: 0.5, label: 'Экономия' },
+  immunity:       { min: 0,   max: 1,   def: 0.3, label: 'Иммунитет' },
+  parentalCare:   { min: 0,   max: 1,   def: 0.5, label: 'Забота о ребёнке' },
+  alarmDrive:     { min: 0,   max: 1,   def: 0.4, label: 'Крик при голоде' },
+  beauty:         { min: 0,   max: 1,   def: 0.5, label: 'Красота (половой отбор)' },
+};
+const GENE_KEYS = Object.keys(GENE_DEFS);
+const GENETIC_MARKERS = ['hue', 'metabolism', 'speed', 'aggression', 'photosynthesis', 'diet'];
+
+function clampGene(key, v) {
+  const d = GENE_DEFS[key];
+  return Math.max(d.min, Math.min(d.max, v));
+}
+
+function randomGenome(dietBias = null) {
+  const g = {};
+  for (const k of GENE_KEYS) {
+    const d = GENE_DEFS[k];
+    g[k] = clampGene(k, d.def * (0.6 + Math.random() * 0.8));
+  }
+  g.hue = Math.random() * 360;
+  if (dietBias !== null) {
+    g.diet = dietBias;
+    g.photosynthesis = clampGene('photosynthesis', 1 - dietBias + (Math.random() - 0.5) * 0.3);
+    g.predation = clampGene('predation', dietBias + (Math.random() - 0.5) * 0.3);
+    g.aggression = clampGene('aggression', dietBias * 0.8 + Math.random() * 0.2);
+  }
+  return g;
+}
+
+function geneticDistance(g1, g2) {
+  let sum = 0;
+  for (const k of GENETIC_MARKERS) {
+    const d = GENE_DEFS[k];
+    const range = d.max - d.min;
+    let diff;
+    if (k === 'hue') diff = Math.abs(((g1[k] - g2[k] + 540) % 360) - 180) / 180;
+    else diff = Math.abs(g1[k] - g2[k]) / range;
+    sum += diff * diff;
+  }
+  return Math.sqrt(sum / GENETIC_MARKERS.length);
+}
+
+function mutate(genome, rate, strength, extraRate = 0) {
+  const g = { ...genome };
+  for (const k of GENE_KEYS) {
+    if (k === 'hue') continue;
+    if (Math.random() < rate + extraRate) {
+      const d = GENE_DEFS[k];
+      const range = d.max - d.min;
+      const isLarge = Math.random() < 0.1;
+      const mult = isLarge ? 1.0 : 0.15;
+      g[k] = clampGene(k, g[k] + (Math.random() - 0.5) * 2 * strength * range * mult);
+    }
+  }
+  if (Math.random() < rate) {
+    const isLarge = Math.random() < 0.1;
+    const mult = isLarge ? 1.0 : 0.15;
+    g.hue = (g.hue + (Math.random() - 0.5) * 80 * mult + 360) % 360;
+  }
+  g.pheromoneType = Math.round(g.pheromoneType);
+  g.signalType = Math.round(g.signalType);
+  return g;
+}
+
+function crossover(g1, g2, rate, strength, inbredPenalty = 0) {
+  const g = {};
+  for (const k of GENE_KEYS) g[k] = Math.random() < 0.5 ? g1[k] : g2[k];
+  return mutate(g, rate, strength, inbredPenalty);
+}
+
+// ================================================================
+// НЕЙРОСЕТЬ
+// ================================================================
+const NN_INPUTS = 10;
+const NN_HIDDEN = 10;
+const NN_OUTPUTS = 4;
+const IN = {
+  ENERGY: 0, HP: 1, FOOD_NEAR: 2, KIN_NEAR: 3,
+  ENEMY_NEAR: 4, FEAR: 5, HUNGER_INSTINCT: 6, BREED_READY: 7,
+  PHEROMONE: 8, SIGNAL_HEARD: 9,
+};
+const OUT = { MOVE_X: 0, MOVE_Y: 1, SIGNAL: 2, EMIT_PHEROMONE: 3 };
+
+function randomBrain() {
+  const w1 = [], b1 = [], w2 = [], b2 = [];
+  for (let i = 0; i < NN_HIDDEN; i++) {
+    for (let j = 0; j < NN_INPUTS; j++) w1.push((Math.random() - 0.5) * 1.5);
+    b1.push((Math.random() - 0.5) * 0.3);
+  }
+  for (let i = 0; i < NN_OUTPUTS; i++) {
+    for (let j = 0; j < NN_HIDDEN; j++) w2.push((Math.random() - 0.5) * 1.5);
+    b2.push((Math.random() - 0.5) * 0.3);
+  }
+  return { w1, b1, w2, b2 };
+}
+
+function mutateBrain(brain, rate, strength) {
+  const copy = {
+    w1: brain.w1.slice(), b1: brain.b1.slice(),
+    w2: brain.w2.slice(), b2: brain.b2.slice(),
+  };
+  const mutArr = (arr) => {
+    for (let i = 0; i < arr.length; i++) {
+      if (Math.random() < rate) {
+        const isLarge = Math.random() < 0.1;
+        const mult = isLarge ? 1.0 : 0.15;
+        arr[i] += (Math.random() - 0.5) * 2 * strength * mult * 2;
+        arr[i] = Math.max(-4, Math.min(4, arr[i]));
+      }
+    }
+  };
+  mutArr(copy.w1); mutArr(copy.b1); mutArr(copy.w2); mutArr(copy.b2);
+  return copy;
+}
+
+function crossoverBrain(b1, b2, rate, strength) {
+  const pick = (a, b) => Math.random() < 0.5 ? a : b;
+  const mixArr = (a, b) => a.map((_, i) => pick(a[i], b[i]));
+  const child = {
+    w1: mixArr(b1.w1, b2.w1), b1: mixArr(b1.b1, b2.b1),
+    w2: mixArr(b1.w2, b2.w2), b2: mixArr(b1.b2, b2.b2),
+  };
+  return mutateBrain(child, rate, strength);
+}
+
+function brainForward(brain, inputs) {
+  const hidden = new Array(NN_HIDDEN);
+  for (let i = 0; i < NN_HIDDEN; i++) {
+    let sum = brain.b1[i];
+    for (let j = 0; j < NN_INPUTS; j++) sum += brain.w1[i * NN_INPUTS + j] * inputs[j];
+    hidden[i] = Math.tanh(sum);
+  }
+  const out = new Array(NN_OUTPUTS);
+  for (let i = 0; i < NN_OUTPUTS; i++) {
+    let sum = brain.b2[i];
+    for (let j = 0; j < NN_HIDDEN; j++) sum += brain.w2[i * NN_HIDDEN + j] * hidden[j];
+    out[i] = Math.tanh(sum);
+  }
+  return { out, hidden };
+}
+
+// ================================================================
+// ПАМЯТЬ
+// ================================================================
+const MEMORY_SIZE = 20;
+class Memory {
+  constructor() { this.events = []; }
+  push(type, text, valence) {
+    this.events.push({ t: Date.now(), type, text, valence });
+    if (this.events.length > MEMORY_SIZE) this.events.shift();
+  }
+  mood() {
+    if (!this.events.length) return 0;
+    const recent = this.events.slice(-8);
+    return recent.reduce((a, e) => a + e.valence, 0) / recent.length;
+  }
+  fear() {
+    const recent = this.events.slice(-10);
+    let neg = 0;
+    for (const e of recent) if (e.valence < -0.2) neg++;
+    return Math.min(1, neg / 5);
+  }
+}
+
+// ================================================================
+// ФЕРОМОНЫ
+// ================================================================
+class PheromoneGrid {
+  constructor(w, h, cellSize) {
+    this.cellSize = cellSize;
+    this.cols = Math.ceil(w / cellSize);
+    this.rows = Math.ceil(h / cellSize);
+    this.grids = [];
+    for (let t = 0; t < 4; t++) this.grids.push(new Float32Array(this.cols * this.rows));
+  }
+  _idx(x, y) {
+    const cx = Math.floor(x / this.cellSize);
+    const cy = Math.floor(y / this.cellSize);
+    if (cx < 0 || cy < 0 || cx >= this.cols || cy >= this.rows) return -1;
+    return cy * this.cols + cx;
+  }
+  emit(x, y, type, amount) {
+    const i = this._idx(x, y);
+    if (i < 0) return;
+    this.grids[type][i] = Math.min(10, this.grids[type][i] + amount);
+  }
+  sense(x, y, type) {
+    const i = this._idx(x, y);
+    if (i < 0) return 0;
+    return this.grids[type][i];
+  }
+  senseAny(x, y) {
+    let sum = 0;
+    for (let t = 0; t < 4; t++) sum += this.sense(x, y, t);
+    return sum / 10;
+  }
+  decay() {
+    for (const g of this.grids) {
+      for (let i = 0; i < g.length; i++) {
+        g[i] *= PHEROMONE_DECAY;
+        if (g[i] < 0.01) g[i] = 0;
+      }
+    }
+  }
+}
+
+// ================================================================
+// SPATIAL HASH
+// ================================================================
+class SpatialHash {
+  constructor(w, h, cellSize) {
+    this.cellSize = cellSize;
+    this.cols = Math.ceil(w / cellSize);
+    this.rows = Math.ceil(h / cellSize);
+    this.cells = new Array(this.cols * this.rows);
+    for (let i = 0; i < this.cells.length; i++) this.cells[i] = [];
+  }
+  clear() { for (let i = 0; i < this.cells.length; i++) this.cells[i].length = 0; }
+  _idx(cx, cy) {
+    if (cx < 0 || cy < 0 || cx >= this.cols || cy >= this.rows) return -1;
+    return cy * this.cols + cx;
+  }
+  insert(x, y, item) {
+    const cx = Math.floor(x / this.cellSize);
+    const cy = Math.floor(y / this.cellSize);
+    const i = this._idx(cx, cy);
+    if (i >= 0) this.cells[i].push(item);
+  }
+  query(x, y) {
+    const cx = Math.floor(x / this.cellSize);
+    const cy = Math.floor(y / this.cellSize);
+    const result = [];
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const i = this._idx(cx + dx, cy + dy);
+        if (i < 0) continue;
+        const cell = this.cells[i];
+        for (let j = 0; j < cell.length; j++) result.push(cell[j]);
+      }
+    }
+    return result;
+  }
+}
+
+// ================================================================
+// ДЕРЕВО — с разными типами
+// ================================================================
+let treeIdCounter = 0;
+const TREE_TYPES = [
+  { name: 'fast',  foodRate: 1.5, foodEnergy: 10, maxAge: 200, hue: 100, size: 14 },
+  { name: 'rich',  foodRate: 4.0, foodEnergy: 25, maxAge: 500, hue: 130, size: 20 },
+  { name: 'big',   foodRate: 6.0, foodEnergy: 40, maxAge: 800, hue: 80,  size: 26 },
+];
+
+class Tree {
+  constructor(x, y, typeIndex = null) {
+    this.id = ++treeIdCounter;
+    this.x = x; this.y = y;
+    this.age = 0;
+    this.typeIndex = typeIndex !== null ? typeIndex :
+      (Math.random() < 0.5 ? 0 : Math.random() < 0.7 ? 1 : 2);
+    const T = TREE_TYPES[this.typeIndex];
+    this.matureAge = 15;
+    this.maxAge = T.maxAge;
+    this.foodRate = T.foodRate;
+    this.foodEnergy = T.foodEnergy;
+    this.hue = T.hue;
+    this.treeSize = T.size;
+    this.foodTimer = 0;
+    this.alive = true;
+    this.sway = Math.random() * Math.PI * 2;
+    this.localFoods = 0;  // счётчик плодов рядом
+  }
+
+  get isMature() { return this.age > this.matureAge; }
+
+  update(world, dt) {
+    this.age += dt;
+    this.sway += dt;
+    if (this.age > this.maxAge) { this.alive = false; return; }
+    if (!this.isMature) return;
+    this.foodTimer += dt;
+    if (this.foodTimer >= this.foodRate) {
+      this.foodTimer = 0;
+      // Лимит: не больше 4 плодов рядом
+      if (world.food.length < MAX_FOOD) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = 15 + Math.random() * 25;
+        world.food.push({
+          x: Math.max(5, Math.min(world.w - 5, this.x + Math.cos(angle) * dist)),
+          y: Math.max(5, Math.min(world.h - 5, this.y + Math.sin(angle) * dist)),
+          energy: this.foodEnergy * (0.8 + Math.random() * 0.4),
+          hue: this.hue + Math.random() * 30,
+          isMeat: false,
+          fromTree: true,
+        });
+      }
+    }
+  }
+}
+
+class Seed {
+  constructor(x, y) {
+    this.x = x; this.y = y;
+    this.age = 0;
+    this.growthTime = 8;
+    this.alive = true;
+    this.hue = 100 + Math.random() * 40;
+  }
+  update(dt) {
+    this.age += dt;
+    return this.age <= this.growthTime;
+  }
+}
+
+// ================================================================
+// СИГНАЛЫ
+// ================================================================
+class Signal {
+  constructor(x, y, hue, type, strength, sourceId = null) {
+    this.x = x; this.y = y;
+    this.hue = hue; this.type = type;
+    this.radius = 0;
+    this.maxRadius = 120;
+    this.strength = strength;
+    this.age = 0;
+    this.lifetime = 1.2;
+    this.sourceId = sourceId;
+  }
+  update(dt) {
+    this.age += dt;
+    this.radius = (this.age / this.lifetime) * this.maxRadius;
+    return this.age < this.lifetime;
+  }
+  alpha() { return Math.max(0, 1 - this.age / this.lifetime) * this.strength; }
+  isAlarm() { return this.type === 1 && this.strength > 0.3; }
+}
+
+// ================================================================
+// КОЛОНИЯ
+// ================================================================
+let colonyIdCounter = 0;
+class Colony {
+  constructor() {
+    this.id = ++colonyIdCounter;
+    this.cells = [];
+    this.hue = 200;
+  }
+  addCell(c) {
+    if (this.cells.includes(c)) return;
+    this.cells.push(c); c.colony = this;
+    if (this.cells.length === 1) this.hue = c.g.hue;
+    else {
+      let sum = 0;
+      for (const cell of this.cells) sum += cell.g.hue;
+      this.hue = sum / this.cells.length;
+    }
+  }
+  removeCell(c) {
+    const i = this.cells.indexOf(c);
+    if (i >= 0) this.cells.splice(i, 1);
+    if (this.cells.length < 2) {
+      for (const cell of this.cells) cell.colony = null;
+      this.cells = [];
+    }
+  }
+  get alive() { return this.cells.length >= 2; }
+}
+
+// ================================================================
+// КЛЕТКА
+// ================================================================
+let cellIdCounter = 0;
+
+class Cell {
+  constructor(genome, brain, x, y) {
+    this.id = ++cellIdCounter;
+    this.g = genome;
+    this.brain = brain;
+    this.x = x; this.y = y;
+    this.vx = 0; this.vy = 0;
+    this.hp = genome.maxHp;
+    this.energy = genome.maxEnergy * 0.7;
+    this.age = 0;
+    this.cooldown = genome.breedCooldown;
+    this.signalCooldown = 0;
+    this.pheromoneCooldown = 0;
+    this.alive = true;
+    this.generation = 0;
+    this.flash = 0;
+    this.memory = new Memory();
+    this.lastDecision = { moveX: 0, moveY: 0, signal: 0, emitPheromone: 0 };
+    this.instincts = { hunger: 0, fear: 0, breed: 0, hunt: 0, social: 0, wander: 0, protect: 0, alarm: 0 };
+
+    this.inbreeding = 0;
+    this.colony = null;
+    this.carryingSeed = false;
+    this.seedTimer = 0;
+    this.caringFor = null;
+    this.careTimer = 0;
+    this.infected = false;
+    this.diseaseTimer = 0;
+    this.drive = { hunger: 0, sex: 0, hunt: 0, social: 0 };
+
+    // Новое для v8
+    this.followingAlarm = null;  // идёт на крик
+    this.beautyScore = 0;         // для полового отбора
+  }
+
+  get radius() { return this.g.radius; }
+
+  scan(world) {
+    const r = this.g.senseRange;
+    let nearestFood = null, foodDist = Infinity;
+    let nearestTree = null, treeDist = Infinity;
+    let nearestKin = null, kinDist = Infinity;
+    let nearestMate = null, mateDist = Infinity, mateScoreBest = 0;
+    let nearestEnemy = null, enemyDist = Infinity;
+    let nearestWeakEnemy = null, weakEnemyDist = Infinity;
+    let nearestAlarm = null, alarmDist = Infinity;
+
+    const foodCandidates = world.foodHash.query(this.x, this.y);
+    for (const f of foodCandidates) {
+      const d = Math.hypot(f.x - this.x, f.y - this.y);
+      if (d < r && d < foodDist) { foodDist = d; nearestFood = f; }
+    }
+
+    for (const t of world.trees) {
+      if (!t.alive || !t.isMature) continue;
+      const d = Math.hypot(t.x - this.x, t.y - this.y);
+      if (d < r && d < treeDist) { treeDist = d; nearestTree = t; }
+    }
+
+    const cellCandidates = world.cellHash.query(this.x, this.y);
+    for (const other of cellCandidates) {
+      if (other === this || !other.alive) continue;
+      const d = Math.hypot(other.x - this.x, other.y - this.y);
+      if (d > r) continue;
+
+      const gDist = geneticDistance(this.g, other.g);
+      const isKin = gDist < 0.25;
+
+      if (isKin) {
+        if (d < kinDist) { kinDist = d; nearestKin = other; }
+      } else {
+        if (d < enemyDist) { enemyDist = d; nearestEnemy = other; }
+        if (other.hp < this.hp * 0.7 && d < weakEnemyDist) {
+          weakEnemyDist = d; nearestWeakEnemy = other;
+        }
+      }
+
+      if (other.cooldown === 0 && other.energy > other.g.maxEnergy * 0.5) {
+        const idealDist = 0.15 + this.g.matePreference * 0.4;
+        const mateScore = 1 - Math.abs(gDist - idealDist) / 0.6;
+        // Половая привлекательность (beauty)
+        const beautyBonus = 0.5 + other.g.beauty * 0.5;
+        // Гибридизация: если это другой вид но outbreedDrive высокий — тоже вариант
+        const canHybrid = this.g.outbreedDrive > 0.6 && gDist < 0.8;
+        const finalScore = mateScore * beautyBonus * (isKin || canHybrid ? 1 : 0.3);
+        if (finalScore > 0.3 && d < mateDist) {
+          mateDist = d; nearestMate = other; mateScoreBest = finalScore;
+        }
+      }
+    }
+
+    // Поиск сигналов тревоги (для хищников и для тех, кто хочет помочь)
+    for (const s of world.signals) {
+      if (!s.isAlarm()) continue;
+      const d = Math.hypot(s.x - this.x, s.y - this.y);
+      if (d < r * 1.5 && d < alarmDist) {
+        alarmDist = d; nearestAlarm = s;
+      }
+    }
+
+    return {
+      nearestFood, foodDist,
+      nearestTree, treeDist,
+      nearestKin, kinDist,
+      nearestMate, mateDist, mateScoreBest,
+      nearestEnemy, enemyDist,
+      nearestWeakEnemy, weakEnemyDist,
+      nearestAlarm, alarmDist,
+      senseR: r,
+    };
+  }
+
+  updateDrives(dt, world) {
+    const energyRatio = this.energy / this.g.maxEnergy;
+    if (energyRatio < 0.5) {
+      this.drive.hunger = Math.min(1, this.drive.hunger + dt * (1 - energyRatio) * 0.5);
+    } else {
+      this.drive.hunger = Math.max(0, this.drive.hunger - dt * 0.3);
+    }
+    if (this.cooldown === 0 && energyRatio > this.g.breedThreshold) {
+      this.drive.sex = Math.min(1, this.drive.sex + dt * 0.3);
+    } else {
+      this.drive.sex = Math.max(0, this.drive.sex - dt * 0.2);
+    }
+    if (this.g.aggression > 0.4) {
+      this.drive.hunt = Math.min(1, this.drive.hunt + dt * this.g.aggression * 0.2);
+    } else {
+      this.drive.hunt = Math.max(0, this.drive.hunt - dt * 0.3);
+    }
+    if (!this.colony) {
+      this.drive.social = Math.min(1, this.drive.social + dt * 0.1);
+    } else {
+      this.drive.social = Math.max(0, this.drive.social - dt * 0.3);
+    }
+  }
+
+  shouldEatTree(s) {
+    if (!s.nearestTree) return false;
+    const energyRatio = this.energy / this.g.maxEnergy;
+    if (energyRatio < 0.15) return true;
+    const hungerPush = 1 - energyRatio;
+    const frugalityHold = this.g.frugality;
+    return (hungerPush - frugalityHold * 0.7) > 0.3;
+  }
+
+  computeInstincts(world) {
+    const s = this.scan(world);
+    const g = this.g;
+    const d = this.drive;
+    const energyRatio = this.energy / g.maxEnergy;
+    const isPredator = g.diet > 0.5;
+    const isHerbivore = g.diet < 0.4;
+
+    // ГОЛОД
+    let hunger = 0;
+    if (energyRatio < 0.7 || d.hunger > 0.5) {
+      const urgency = Math.max(1 - energyRatio, d.hunger);
+      const foodCloseness = s.nearestFood ? (1 - s.foodDist / s.senseR) : 0;
+      hunger = g.hungerDrive * urgency * (0.4 + 0.6 * foodCloseness);
+      if (this.shouldEatTree(s)) {
+        const treeCloseness = 1 - s.treeDist / s.senseR;
+        hunger = Math.max(hunger, 0.7 + treeCloseness * 0.3);
+      }
+    }
+
+    // СТРАХ
+    const hpRatio = this.hp / g.maxHp;
+    let fear = 0;
+    if (hpRatio < 0.6 && s.nearestEnemy) {
+      const woundUrgency = 1 - hpRatio;
+      const enemyCloseness = 1 - s.enemyDist / s.senseR;
+      fear = g.fearDrive * woundUrgency * enemyCloseness;
+    }
+    fear = Math.max(fear, this.memory.fear() * g.fearDrive * 0.7);
+
+    // РАЗМНОЖЕНИЕ
+    let breed = 0;
+    if (this.cooldown === 0 && energyRatio > g.breedThreshold) {
+      const target = s.nearestMate || s.nearestKin;
+      if (target) {
+        const targetDist = s.nearestMate ? s.mateDist : s.kinDist;
+        const closeness = 1 - targetDist / s.senseR;
+        const partnerReady = target.energy > target.g.maxEnergy * 0.5;
+        breed = Math.max(g.breedDrive * (0.5 + 0.5 * closeness) * (partnerReady ? 1 : 0.4), d.sex * 0.8);
+      } else {
+        breed = d.sex * 0.6;
+      }
+    }
+
+    // ОХОТА (только хищники)
+    let hunt = 0;
+    if (isPredator && s.nearestWeakEnemy && g.aggression > 0.3) {
+      const enemyCloseness = 1 - s.weakEnemyDist / s.senseR;
+      hunt = Math.max(g.huntDrive * g.aggression * enemyCloseness, d.hunt * 0.5);
+      if (energyRatio < 0.5) hunt *= 1.5;
+    }
+
+    // СОЦИАЛЬНОЕ
+    let social = 0;
+    if (s.nearestKin && this.g.cooperation > 0.4) {
+      const kinCloseness = 1 - s.kinDist / s.senseR;
+      social = this.g.cooperation * kinCloseness * (1 + d.social);
+    }
+
+    // ЗАЩИТА РЕБЁНКА
+    let protect = 0;
+    if (this.caringFor && this.caringFor.alive && this.careTimer > 0) {
+      const parentHealthy = hpRatio > 0.4 && energyRatio > 0.3;
+      protect = g.parentalCare * (parentHealthy ? 1 : 0.3);
+    }
+
+    // РЕАКЦИЯ НА ТРЕВОГУ
+    let alarmReaction = 0;
+    if (s.nearestAlarm) {
+      const alarmCloseness = 1 - s.alarmDist / (s.senseR * 1.5);
+      if (isPredator) {
+        // Хищник идёт на крик (крик = слабая жертва)
+        alarmReaction = alarmCloseness * 0.9;
+      } else if (isHerbivore) {
+        // Травоядный избегает (там плохо, там хищники)
+        alarmReaction = -alarmCloseness * 0.7;
+      } else {
+        // Всеядный — осторожно проверяет
+        alarmReaction = alarmCloseness * 0.2;
+      }
+    }
+
+    const wander = g.wanderDrive * 0.3;
+    this.instincts = { hunger, fear, breed, hunt, social, protect, alarm: alarmReaction, wander };
+    return this.resolveInstincts(s, world);
+  }
+
+  resolveInstincts(s, world) {
+    const inst = this.instincts;
+    const result = { dx: 0, dy: 0, type: 'idle', target: null };
+
+    // ПРИОРИТЕТ 1: защита ребёнка
+    if (inst.protect > 0.3 && this.caringFor && this.caringFor.alive) {
+      for (const other of world.cells) {
+        if (other === this || other === this.caringFor || !other.alive) continue;
+        const d = Math.hypot(other.x - this.caringFor.x, other.y - this.caringFor.y);
+        if (d < 60) {
+          const gDist = geneticDistance(this.g, other.g);
+          if (gDist > 0.25) {
+            const dx = other.x - this.x, dy = other.y - this.y;
+            const dd = Math.hypot(dx, dy) || 1;
+            result.dx = dx / dd * 1.5;
+            result.dy = dy / dd * 1.5;
+            result.type = 'protect';
+            result.target = other;
+            return result;
+          }
+        }
+      }
+      const dx = this.caringFor.x - this.x;
+      const dy = this.caringFor.y - this.y;
+      const dd = Math.hypot(dx, dy) || 1;
+      if (dd > 30) {
+        result.dx = dx / dd * 1.0;
+        result.dy = dy / dd * 1.0;
+        result.type = 'protect_stay';
+        return result;
+      }
+    }
+
+    // ПРИОРИТЕТ 2: хищник идёт на крик
+    if (inst.alarm > 0.4 && s.nearestAlarm) {
+      const dx = s.nearestAlarm.x - this.x;
+      const dy = s.nearestAlarm.y - this.y;
+      const d = Math.hypot(dx, dy) || 1;
+      result.dx = dx / d * 1.8;
+      result.dy = dy / d * 1.8;
+      result.type = 'seek_alarm';
+      result.target = s.nearestAlarm;
+      return result;
+    }
+
+    // ПРИОРИТЕТ 3: страх
+    if (inst.fear > 0.25 && s.nearestEnemy) {
+      const dx = this.x - s.nearestEnemy.x;
+      const dy = this.y - s.nearestEnemy.y;
+      const d = Math.hypot(dx, dy) || 1;
+      result.dx = dx / d * inst.fear * 2;
+      result.dy = dy / d * inst.fear * 2;
+      result.type = 'flee';
+      result.target = s.nearestEnemy;
+      return result;
+    }
+
+    // ПРИОРИТЕТ 4: травоядный избегает тревогу
+    if (inst.alarm < -0.3 && s.nearestAlarm) {
+      const dx = this.x - s.nearestAlarm.x;
+      const dy = this.y - s.nearestAlarm.y;
+      const d = Math.hypot(dx, dy) || 1;
+      result.dx = dx / d * Math.abs(inst.alarm) * 1.5;
+      result.dy = dy / d * Math.abs(inst.alarm) * 1.5;
+      result.type = 'avoid_alarm';
+      return result;
+    }
+
+    // ПРИОРИТЕТ 5: голод
+    if (inst.hunger > 0.2) {
+      const eatTree = this.shouldEatTree(s);
+      if (eatTree && s.nearestTree) {
+        const dx = s.nearestTree.x - this.x;
+        const dy = s.nearestTree.y - this.y;
+        const d = Math.hypot(dx, dy) || 1;
+        result.dx = dx / d * inst.hunger * 2;
+        result.dy = dy / d * inst.hunger * 2;
+        result.type = 'seek_tree';
+        result.target = s.nearestTree;
+        return result;
+      }
+      if (s.nearestFood) {
+        const dx = s.nearestFood.x - this.x;
+        const dy = s.nearestFood.y - this.y;
+        const d = Math.hypot(dx, dy) || 1;
+        result.dx = dx / d * inst.hunger * 2;
+        result.dy = dy / d * inst.hunger * 2;
+        result.type = 'seek_food';
+        result.target = s.nearestFood;
+        return result;
+      }
+    }
+
+    // ПРИОРИТЕТ 6: охота
+    if (inst.hunt > 0.3 && s.nearestWeakEnemy) {
+      const dx = s.nearestWeakEnemy.x - this.x;
+      const dy = s.nearestWeakEnemy.y - this.y;
+      const d = Math.hypot(dx, dy) || 1;
+      result.dx = dx / d * inst.hunt * 1.5;
+      result.dy = dy / d * inst.hunt * 1.5;
+      result.type = 'hunt';
+      result.target = s.nearestWeakEnemy;
+      return result;
+    }
+
+    // ПРИОРИТЕТ 7: размножение
+    if (inst.breed > 0.3) {
+      const target = s.nearestMate || s.nearestKin;
+      if (target) {
+        const dx = target.x - this.x;
+        const dy = target.y - this.y;
+        const d = Math.hypot(dx, dy) || 1;
+        result.dx = dx / d * inst.breed * 1.5;
+        result.dy = dy / d * inst.breed * 1.5;
+        result.type = 'seek_mate';
+        result.target = target;
+        return result;
+      }
+    }
+
+    // ПРИОРИТЕТ 8: социальное
+    if (inst.social > 0.3 && s.nearestKin) {
+      const dx = s.nearestKin.x - this.x;
+      const dy = s.nearestKin.y - this.y;
+      const d = Math.hypot(dx, dy) || 1;
+      result.dx = dx / d * inst.social * 0.8;
+      result.dy = dy / d * inst.social * 0.8;
+      result.type = 'social';
+      return result;
+    }
+
+    const angle = (this.id * 0.5 + this.age * 0.01) % (Math.PI * 2);
+    result.dx = Math.cos(angle) * inst.wander * 0.6;
+    result.dy = Math.sin(angle) * inst.wander * 0.6;
+    result.type = 'wander';
+    return result;
+  }
+
+  modulate(instinctResult, world) {
+    const s = this.scan(world);
+    const inputs = new Array(NN_INPUTS).fill(0);
+    inputs[IN.ENERGY] = this.energy / this.g.maxEnergy;
+    inputs[IN.HP] = this.hp / this.g.maxHp;
+    inputs[IN.FOOD_NEAR] = s.nearestFood ? (1 - s.foodDist / s.senseR) : 0;
+    inputs[IN.KIN_NEAR] = s.nearestKin ? (1 - s.kinDist / s.senseR) : 0;
+    inputs[IN.ENEMY_NEAR] = s.nearestEnemy ? (1 - s.enemyDist / s.senseR) : 0;
+    inputs[IN.FEAR] = this.memory.fear();
+    inputs[IN.HUNGER_INSTINCT] = this.instincts.hunger;
+    inputs[IN.BREED_READY] = this.instincts.breed;
+    inputs[IN.PHEROMONE] = world.pheromones.senseAny(this.x, this.y);
+    inputs[IN.SIGNAL_HEARD] = 0;
+
+    const { out } = brainForward(this.brain, inputs);
+    this.lastDecision = {
+      moveX: out[OUT.MOVE_X], moveY: out[OUT.MOVE_Y],
+      signal: out[OUT.SIGNAL], emitPheromone: out[OUT.EMIT_PHEROMONE],
+    };
+    const modulation = 0.4;
+    const dx = instinctResult.dx * (1 + out[OUT.MOVE_X] * modulation);
+    const dy = instinctResult.dy * (1 + out[OUT.MOVE_Y] * modulation);
+    return { dx, dy, type: instinctResult.type, signal: out[OUT.SIGNAL], emitPheromone: out[OUT.EMIT_PHEROMONE] };
+  }
+
+  think_(text, valence) {
+    this.memory.push('misc', text, valence);
+  }
+
+  update(world, dt) {
+    if (!this.alive) return;
+    this.age += dt;
+    this.cooldown = Math.max(0, this.cooldown - dt);
+    this.signalCooldown = Math.max(0, this.signalCooldown - dt);
+    this.pheromoneCooldown = Math.max(0, this.pheromoneCooldown - dt);
+    this.flash = Math.max(0, this.flash - dt);
+    this.seedTimer += dt;
+    this.careTimer = Math.max(0, this.careTimer - dt);
+
+    // Пандемия
+    if (this.infected) {
+      this.diseaseTimer -= dt;
+      this.hp -= dt * 2 * (1 - this.g.immunity);
+      this.energy -= dt * 1;
+      this.cooldown = Math.max(this.cooldown, 30);
+      if (this.diseaseTimer <= 0) {
+        this.infected = false;
+        this.think_('выздоровел', 0.6);
+      }
+      if (this.hp <= 0) { this.alive = false; return; }
+    } else {
+      const density = world.cellHash.query(this.x, this.y).length / 20;
+      if (density > 0.7 && Math.random() < 0.002 * density * (1 - this.g.immunity)) {
+        this.infected = true;
+        this.diseaseTimer = 10 + Math.random() * 10;
+        this.think_('заболел!', -0.9);
+      }
+    }
+
+    // Метаболизм
+    const moveCost = Math.hypot(this.vx, this.vy) * 0.02;
+    this.energy -= (this.g.metabolism * 0.3 + moveCost) * dt;
+    const photoEfficiency = 1 - this.g.diet;
+    const dayMultiplier = world.isDay ? 1 : 0.15;
+    this.energy += this.g.photosynthesis * photoEfficiency * 0.5 * dt * dayMultiplier;
+    if (this.hp < this.g.maxHp) {
+      this.hp = Math.min(this.g.maxHp, this.hp + this.g.hpRegen * dt);
+      this.energy -= this.g.hpRegen * 0.15 * dt;
+    }
+    this.energy = Math.min(this.energy, this.g.maxEnergy);
+
+    if (this.energy <= 0 || this.hp <= 0 || this.age > this.g.lifespan) {
+      this.alive = false; return;
+    }
+    if (Math.random() < this.g.deathChance * dt) { this.alive = false; return; }
+
+    this.updateDrives(dt, world);
+
+    if (this.caringFor && (!this.caringFor.alive || this.careTimer <= 0)) {
+      this.caringFor = null;
+    }
+
+    const instinctResult = this.computeInstincts(world);
+    const decision = this.modulate(instinctResult, world);
+
+    const spd = this.g.speed;
+    this.vx = (this.vx + decision.dx * spd * 0.15) * 0.85;
+    this.vy = (this.vy + decision.dy * spd * 0.15) * 0.85;
+    const vmag = Math.hypot(this.vx, this.vy);
+    if (vmag > spd) {
+      this.vx = this.vx / vmag * spd;
+      this.vy = this.vy / vmag * spd;
+    }
+    this.x += this.vx * dt * 60;
+    this.y += this.vy * dt * 60;
+
+    const r = this.radius;
+    if (this.x < r) { this.x = r; this.vx = Math.abs(this.vx) * 0.5; }
+    if (this.y < r) { this.y = r; this.vy = Math.abs(this.vy) * 0.5; }
+    if (this.x > world.w - r) { this.x = world.w - r; this.vx = -Math.abs(this.vx) * 0.5; }
+    if (this.y > world.h - r) { this.y = world.h - r; this.vy = -Math.abs(this.vy) * 0.5; }
+
+    // СИГНАЛЫ
+    const energyRatio = this.energy / this.g.maxEnergy;
+    const alarmInstinct = energyRatio < 0.3 ? this.g.alarmDrive * (0.3 - energyRatio) * 3 : 0;
+    const wantSignal = Math.max(decision.signal, alarmInstinct);
+    if (wantSignal > 0.4 && this.signalCooldown === 0 && this.g.signalPower > 0.2) {
+      world.signals.push(new Signal(
+        this.x, this.y, this.g.hue,
+        Math.round(this.g.signalType),
+        Math.max(this.g.signalPower, alarmInstinct),
+        this.id
+      ));
+      this.signalCooldown = 2;
+    }
+
+    // ФЕРОМОНЫ
+    if (decision.emitPheromone > 0.1 && this.pheromoneCooldown === 0 && this.g.pheromoneCap > 0.1) {
+      world.pheromones.emit(this.x, this.y, Math.round(this.g.pheromoneType), this.g.pheromoneCap);
+      this.pheromoneCooldown = 1.5;
+    }
+
+    // Семечко
+    if (this.carryingSeed && this.seedTimer > 5) this.dropSeed(world);
+
+    // Забота — кормление
+    if (this.caringFor && this.caringFor.alive && this.careTimer > 0) {
+      if (this.energy > this.g.maxEnergy * 0.7 && this.caringFor.energy < this.caringFor.g.maxEnergy * 0.5) {
+        const share = Math.min(5 * dt, this.energy - this.g.maxEnergy * 0.5);
+        if (share > 0) {
+          this.energy -= share;
+          this.caringFor.energy += share * 0.8;
+        }
+      }
+    }
+
+    this.interactWithNeighbors(world, dt, decision);
+  }
+
+  dropSeed(world) {
+    this.carryingSeed = false;
+    for (const t of world.trees) {
+      if (!t.alive) continue;
+      if (Math.hypot(t.x - this.x, t.y - this.y) < 50) return;
+    }
+    world.seeds.push(new Seed(this.x, this.y));
+  }
+
+  interactWithNeighbors(world, dt, decision) {
+    const candidates = world.cellHash.query(this.x, this.y);
+    for (const other of candidates) {
+      if (other === this || !other.alive) continue;
+      const dx = other.x - this.x, dy = other.y - this.y;
+      const d = Math.hypot(dx, dy);
+      const minD = this.radius + other.radius;
+      if (d >= minD || d < 0.01) continue;
+
+      const push = (minD - d) * 0.5;
+      const nx = dx / d, ny = dy / d;
+      this.x -= nx * push; this.y -= ny * push;
+      other.x += nx * push; other.y += ny * push;
+
+      const gDist = geneticDistance(this.g, other.g);
+      const isKin = gDist < 0.25;
+
+      // Атака
+      const shouldAttack = decision.type === 'hunt' || decision.type === 'protect' ||
+                          (this.g.aggression > 0.5 && !isKin);
+      if (!isKin && shouldAttack && this.g.aggression > 0.2) {
+        const huntEff = 0.3 + this.g.diet * 1.2;
+        const dmg = this.g.aggression * this.g.predation * 3 * dt * 1.5 * huntEff;
+        other.hp -= dmg;
+        this.energy = Math.min(this.g.maxEnergy, this.energy + dmg * 0.5 * (0.5 + this.g.diet * 0.5));
+        other.flash = 1;
+        if (other.hp <= 0) {
+          other.alive = false;
+          this.energy = Math.min(this.g.maxEnergy, this.energy + other.energy * 0.5 + 10);
+          this.think_('убил добычу', 0.6);
+        }
+      }
+
+      // Свои идут на помощь — если слышат крик родственника
+      const isHelpingKin = isKin && decision.type === 'seek_alarm';
+      if (isHelpingKin && this.energy > other.energy) {
+        const share = Math.min(5 * dt, this.energy - other.energy);
+        if (share > 0) {
+          this.energy -= share;
+          other.energy += share * 0.9;
+          if (Math.random() < 0.02) this.think_('помог сородичу', 0.5);
+        }
+      }
+
+      // Кооперация
+      if (isKin && this.g.cooperation > 0.4 && this.energy > this.g.maxEnergy * 0.5) {
+        const share = this.g.cooperation * 5 * dt;
+        if (this.energy - share > 5) {
+          this.energy -= share;
+          other.energy = Math.min(other.g.maxEnergy, other.energy + share * 0.9);
+        }
+      }
+
+      // Передача болезни
+      if (this.infected && !other.infected && Math.random() < 0.3 * dt) {
+        other.infected = true;
+        other.diseaseTimer = 10 + Math.random() * 10;
+        other.think_('заразился', -0.9);
+      }
+
+      // Слипание
+      if (isKin && this.g.adhesion > 0.5 && other.g.adhesion > 0.5 && Math.random() < 0.005) {
+        this.tryFormColony(other, world);
+      }
+
+      // РАЗМНОЖЕНИЕ (с гибридизацией)
+      if (
+        this.cooldown === 0 && other.cooldown === 0 &&
+        !this.infected && !other.infected &&
+        this.energy > this.g.maxEnergy * this.g.breedThreshold &&
+        other.energy > other.g.maxEnergy * other.g.breedThreshold
+      ) {
+        const canOutbreed = this.g.outbreedDrive > 0.5 && gDist < 0.7;
+        const canHybrid = gDist >= 0.25 && gDist < 0.5 && this.g.outbreedDrive > 0.7;
+        if (isKin || canOutbreed || canHybrid) {
+          this._breedWith(other, world, gDist);
+        }
+      }
+    }
+  }
+
+  tryFormColony(other, world) {
+    if (this.colony && other.colony) return;
+    const colony = this.colony || other.colony || new Colony();
+    colony.addCell(this); colony.addCell(other);
+    if (!world.colonies.includes(colony)) world.colonies.push(colony);
+  }
+
+  _breedWith(partner, world, gDist) {
+    let inbredPenalty = 0;
+    if (gDist < 0.15) inbredPenalty = (0.15 - gDist) / 0.15 * 0.5;
+
+    const childGenome = crossover(this.g, partner.g, world.mutRate, world.mutStr, inbredPenalty);
+    const childBrain = crossoverBrain(this.brain, partner.brain, world.mutRate, world.mutStr);
+
+    const angle = Math.random() * Math.PI * 2;
+    const dist = this.radius + partner.radius + 5;
+    const cx = Math.max(10, Math.min(world.w - 10, (this.x + partner.x) / 2 + Math.cos(angle) * dist));
+    const cy = Math.max(10, Math.min(world.h - 10, (this.y + partner.y) / 2 + Math.sin(angle) * dist));
+
+    const child = new Cell(childGenome, childBrain, cx, cy);
+    child.generation = Math.max(this.generation, partner.generation) + 1;
+    const parentInbreed = (this.inbreeding + partner.inbreeding) / 2;
+    child.inbreeding = Math.min(1, parentInbreed * 0.5 + (1 - gDist) * 0.5);
+    child.energy = childGenome.maxEnergy * 0.5 * (1 - child.inbreeding * 0.4);
+    child.hp = childGenome.maxHp * 0.5 * (1 - child.inbreeding * 0.3);
+
+    if (child.inbreeding > 0.7 && Math.random() < child.inbreeding * 0.15) {
+      world.births++; world.deaths++;
+      return;
+    }
+
+    child.think_('родился!', 0.5);
+    world.addCell(child);
+
+    this.energy -= this.energy * this.g.breedCost;
+    partner.energy -= partner.energy * partner.g.breedCost;
+    this.cooldown = this.g.breedCooldown;
+    partner.cooldown = partner.g.breedCooldown;
+    this.flash = 1; partner.flash = 1;
+
+    if (this.g.parentalCare > 0.4) {
+      this.caringFor = child;
+      this.careTimer = 15 * this.g.parentalCare;
+    }
+    world.births++;
+  }
+}
+
+// ================================================================
+// МИР
+// ================================================================
+class World {
+  constructor(w, h) {
+    this.w = w; this.h = h;
+    this.cells = [];
+    this.food = [];
+    this.trees = [];
+    this.seeds = [];
+    this.signals = [];
+    this.colonies = [];
+    this.tick = 0;
+    this.births = 0;
+    this.deaths = 0;
+    this.mutRate = 0.2;
+    this.mutStr = 0.15;
+    this.pheromoneDecayTimer = 0;
+    this.dayPhase = 0;  // 0..1
+    this.isDay = true;
+
+    this.cellHash = new SpatialHash(w, h, HASH_CELL);
+    this.foodHash = new SpatialHash(w, h, HASH_CELL);
+    this.pheromones = new PheromoneGrid(w, h, PHEROMONE_GRID);
+  }
+
+  addCell(c) { this.cells.push(c); }
+
+  rebuildHashes() {
+    this.cellHash.clear();
+    this.foodHash.clear();
+    for (const c of this.cells) if (c.alive) this.cellHash.insert(c.x, c.y, c);
+    for (const f of this.food) this.foodHash.insert(f.x, f.y, f);
+  }
+
+  removeDead() {
+    const before = this.cells.length;
+    this.cells = this.cells.filter(c => {
+      if (!c.alive) {
+        if (c.colony) c.colony.removeCell(c);
+        if (Math.random() < 0.7) {
+          this.food.push({
+            x: c.x, y: c.y,
+            energy: Math.min(50, c.energy + c.radius * 2),
+            hue: c.g.hue, isMeat: true,
+          });
+        }
+        return false;
+      }
+      return true;
+    });
+    this.deaths += before - this.cells.length;
+    this.colonies = this.colonies.filter(col => col.alive);
+    this.trees = this.trees.filter(t => t.alive);
+  }
+
+  step(dt) {
+    this.tick += dt;
+
+    // День-ночь
+    this.dayPhase = (this.dayPhase + dt / DAY_LENGTH) % 1;
+    this.isDay = this.dayPhase < 0.5;
+
+    for (const t of this.trees) t.update(this, dt);
+
+    for (let i = this.seeds.length - 1; i >= 0; i--) {
+      const s = this.seeds[i];
+      if (!s.update(dt)) {
+        this.seeds.splice(i, 1);
+        if (this.trees.length < MAX_TREES) {
+          let tooClose = false;
+          for (const t of this.trees) {
+            if (t.alive && Math.hypot(t.x - s.x, t.y - s.y) < 40) { tooClose = true; break; }
+          }
+          if (!tooClose) this.trees.push(new Tree(s.x, s.y));
+        }
+      }
+    }
+
+    this.rebuildHashes();
+    for (const c of this.cells) c.update(this, dt);
+
+    // Поедание
+    for (const c of this.cells) {
+      if (!c.alive) continue;
+      for (let i = this.food.length - 1; i >= 0; i--) {
+        const f = this.food[i];
+        const d = Math.hypot(f.x - c.x, f.y - c.y);
+        if (d < c.radius + 4) {
+          let efficiency;
+          if (f.isMeat) efficiency = 0.3 + c.g.diet * 1.2;
+          else efficiency = 0.3 + (1 - c.g.diet) * 1.2;
+          c.energy = Math.min(c.g.maxEnergy, c.energy + f.energy * efficiency);
+          c.hp = Math.min(c.g.maxHp, c.hp + f.energy * 0.2 * efficiency);
+          if (f.fromTree && c.g.diet < 0.6 && !c.carryingSeed && Math.random() < 0.02) {
+            c.carryingSeed = true; c.seedTimer = 0;
+          }
+          this.food.splice(i, 1);
+        }
+      }
+      // Поедание дерева
+      for (let i = this.trees.length - 1; i >= 0; i--) {
+        const t = this.trees[i];
+        if (!t.alive || !t.isMature) continue;
+        const d = Math.hypot(t.x - c.x, t.y - c.y);
+        if (d < c.radius + 20) {
+          const s = { nearestTree: t, treeDist: d, senseR: c.g.senseRange };
+          if (c.shouldEatTree(s)) {
+            const meatEff = 0.3 + (1 - c.g.diet) * 1.2;
+            c.energy = Math.min(c.g.maxEnergy, c.energy + 180 * meatEff);
+            c.hp = Math.min(c.g.maxHp, c.hp + 30);
+            c.think_('съел дерево!', 1.0);
+            t.alive = false;
+            if (c.g.diet < 0.6 && !c.carryingSeed && Math.random() < 0.15) {
+              c.carryingSeed = true; c.seedTimer = 0;
+            }
+          }
+        }
+      }
+    }
+
+    this.signals = this.signals.filter(s => s.update(dt));
+
+    for (const c of this.cells) {
+      if (!c.alive) continue;
+      for (const s of this.signals) {
+        const gDist = Math.abs(((s.hue - c.g.hue + 540) % 360) - 180);
+        if (gDist > 60) continue;
+        const d = Math.hypot(s.x - c.x, s.y - c.y);
+        if (d < s.radius && Math.random() < 0.1) {
+          if (s.type === 1 && s.strength > 0.4) c.think_('услышал тревогу', -0.4);
+        }
+      }
+    }
+
+    this.pheromoneDecayTimer += dt;
+    if (this.pheromoneDecayTimer > 0.5) {
+      this.pheromoneDecayTimer = 0;
+      this.pheromones.decay();
+    }
+
+    this.removeDead();
+  }
+}
+
+// ================================================================
+// КАМЕРА
+// ================================================================
+const world = new World(WORLD_W, WORLD_H);
+const camera = { x: WORLD_W / 2, y: WORLD_H / 2, zoom: 0.7 };
+let followCell = null;
+
+function worldToScreen(wx, wy) {
+  return {
+    x: (wx - camera.x) * camera.zoom + canvas.width / 2,
+    y: (wy - camera.y) * camera.zoom + canvas.height / 2,
+  };
+}
+function screenToWorld(sx, sy) {
+  return {
+    x: (sx - canvas.width / 2) / camera.zoom + camera.x,
+    y: (sy - canvas.height / 2) / camera.zoom + camera.y,
+  };
+}
+
+// ================================================================
+// РЕНДЕР
+// ================================================================
+function draw() {
+  // Фон с затемнением ночью
+  const dayLightness = world.isDay ? 1 : 0.5;
+  ctx.fillStyle = `rgb(${Math.round(10 * dayLightness)}, ${Math.round(10 * dayLightness)}, ${Math.round(18 * dayLightness)})`;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const tl = worldToScreen(0, 0);
+  const br = worldToScreen(WORLD_W, WORLD_H);
+  ctx.strokeStyle = '#2a2a3a';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(tl.x, tl.y, br.x - tl.x, br.y - tl.y);
+
+  // Феромоны
+  if (camera.zoom > 0.4) {
+    const ph = world.pheromones;
+    const cs = ph.cellSize;
+    for (let y = 0; y < ph.rows; y++) {
+      for (let x = 0; x < ph.cols; x++) {
+        const i = y * ph.cols + x;
+        for (let t = 0; t < 4; t++) {
+          const v = ph.grids[t][i];
+          if (v < 0.1) continue;
+          const p = worldToScreen(x * cs + cs / 2, y * cs + cs / 2);
+          const alpha = Math.min(0.3, v * 0.1);
+          const colors = ['#4f8', '#f44', '#f6c', '#fa4'];
+          ctx.fillStyle = colors[t];
+          ctx.globalAlpha = alpha;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, cs * camera.zoom * 0.6, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Деревья
+  for (const t of world.trees) {
+    if (!t.alive) continue;
+    const p = worldToScreen(t.x, t.y);
+    if (p.x < -50 || p.y < -50 || p.x > canvas.width + 50 || p.y > canvas.height + 50) continue;
+    const isMature = t.isMature;
+    const size = isMature ? t.treeSize : 6 + (t.age / t.matureAge) * (t.treeSize - 6);
+    const sway = Math.sin(t.sway) * 1.5;
+
+    ctx.strokeStyle = '#5a3a1a';
+    ctx.lineWidth = Math.max(2, size / 5) * camera.zoom;
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y + size * camera.zoom);
+    ctx.lineTo(p.x + sway * camera.zoom, p.y);
+    ctx.stroke();
+
+    ctx.fillStyle = isMature ? `hsl(${t.hue}, 50%, ${world.isDay ? 25 : 15}%)` : `hsl(${t.hue}, 40%, 20%)`;
+    ctx.beginPath();
+    ctx.arc(p.x + sway * camera.zoom, p.y - size * 0.3 * camera.zoom, size * 0.9 * camera.zoom, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (isMature && camera.zoom > 0.5) {
+      ctx.fillStyle = `hsl(${t.hue}, 70%, 60%)`;
+      ctx.beginPath();
+      ctx.arc(p.x + sway * camera.zoom, p.y - size * 0.3 * camera.zoom, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Семечки
+  for (const s of world.seeds) {
+    const p = worldToScreen(s.x, s.y);
+    ctx.fillStyle = `hsl(${s.hue}, 60%, 55%)`;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 3 * camera.zoom, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Еда
+  for (const f of world.food) {
+    const p = worldToScreen(f.x, f.y);
+    if (p.x < -10 || p.y < -10 || p.x > canvas.width + 10 || p.y > canvas.height + 10) continue;
+    ctx.fillStyle = f.isMeat ? `hsl(${f.hue}, 50%, 40%)` : `hsl(${f.hue}, 70%, 50%)`;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, (f.isMeat ? 3 : 2.5) * camera.zoom, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Сигналы
+  for (const s of world.signals) {
+    const p = worldToScreen(s.x, s.y);
+    const colors = ['#4f8', '#f44', '#f6c', '#fa4'];
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, s.radius * camera.zoom, 0, Math.PI * 2);
+    ctx.strokeStyle = colors[s.type] || '#6cf';
+    ctx.globalAlpha = s.alpha();
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  // Колонии
+  for (const col of world.colonies) {
+    if (col.cells.length < 2) continue;
+    ctx.beginPath();
+    for (let i = 0; i < col.cells.length; i++) {
+      const c = col.cells[i];
+      const p = worldToScreen(c.x, c.y);
+      if (i === 0) ctx.moveTo(p.x, p.y);
+      else ctx.lineTo(p.x, p.y);
+    }
+    ctx.strokeStyle = `hsla(${col.hue}, 60%, 50%, 0.4)`;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  }
+
+  // Клетки
+  for (const c of world.cells) {
+    if (!c.alive) continue;
+    const p = worldToScreen(c.x, c.y);
+    const r = c.radius * camera.zoom;
+    if (p.x < -30 || p.y < -30 || p.x > canvas.width + 30 || p.y > canvas.height + 30) continue;
+    const hpRatio = Math.max(0, c.hp / c.g.maxHp);
+    const eRatio = Math.max(0, c.energy / c.g.maxEnergy);
+
+    if (c.flash > 0) {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r + 6 * c.flash * camera.zoom, 0, Math.PI * 2);
+      ctx.fillStyle = `hsla(${c.g.hue}, 100%, 70%, ${c.flash * 0.4})`;
+      ctx.fill();
+    }
+
+    const mood = c.memory.mood();
+    const light = 25 + hpRatio * 30;
+    const sat = (55 + mood * 20) * (1 - c.inbreeding * 0.5);
+    // Красота влияет на яркость
+    const beautyLight = light * (0.7 + c.g.beauty * 0.5);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+    ctx.fillStyle = `hsl(${c.g.hue}, ${sat}%, ${beautyLight}%)`;
+    ctx.fill();
+
+    ctx.strokeStyle = `hsl(${c.g.hue}, 80%, ${35 + hpRatio * 30}%)`;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r * 0.4 * (0.3 + eRatio * 0.7), 0, Math.PI * 2);
+    ctx.fillStyle = `hsl(${c.g.hue}, 90%, ${60 + eRatio * 20}%)`;
+    ctx.fill();
+
+    if (c.memory.fear() > 0.4) {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r + 3, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(255, 80, 80, ${c.memory.fear() * 0.6})`;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    if (c.inbreeding > 0.5) {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r + 5, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(180, 80, 255, ${(c.inbreeding - 0.5) * 1.2})`;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+    if (c.infected) {
+      const pulse = 0.5 + Math.sin(world.tick * 5) * 0.3;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r + 6, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(80, 255, 80, ${pulse})`;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    if (c.caringFor && c.caringFor.alive) {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r + 7, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(102, 200, 255, 0.5)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+    if (c.carryingSeed) {
+      ctx.fillStyle = '#8f8';
+      ctx.beginPath();
+      ctx.arc(p.x + r * 0.7, p.y - r * 0.7, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (camera.zoom > 0.8) {
+      const dietHue = 120 - c.g.diet * 120;
+      ctx.fillStyle = `hsl(${dietHue}, 80%, 60%)`;
+      ctx.beginPath();
+      ctx.arc(p.x + r - 2, p.y - r + 2, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (c.generation > 0 && camera.zoom > 0.7) {
+      ctx.fillStyle = '#fff';
+      ctx.font = `${Math.max(8, 9 * camera.zoom)}px monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(c.generation, p.x, p.y - r - 6);
+    }
+  }
+
+  for (const c of selection) {
+    if (!c.alive) continue;
+    const p = worldToScreen(c.x, c.y);
+    const r = c.radius * camera.zoom;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r + 4, 0, Math.PI * 2);
+    ctx.strokeStyle = '#6cf';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  if (dragSelect) {
+    const x = Math.min(dragSelect.x1, dragSelect.x2);
+    const y = Math.min(dragSelect.y1, dragSelect.y2);
+    const w = Math.abs(dragSelect.x2 - dragSelect.x1);
+    const h = Math.abs(dragSelect.y2 - dragSelect.y1);
+    ctx.fillStyle = 'rgba(102, 204, 255, 0.1)';
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = '#6cf';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.strokeRect(x, y, w, h);
+    ctx.setLineDash([]);
+  }
+
+  // Ночное затемнение
+  if (!world.isDay) {
+    const darkness = 0.4 * (1 - Math.abs(world.dayPhase - 0.75) * 4);
+    ctx.fillStyle = `rgba(0, 0, 30, ${Math.max(0, darkness)})`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  if (followCell && followCell.alive) {
+    camera.x = followCell.x;
+    camera.y = followCell.y;
+  }
+
+  drawMinimap();
+}
+
+// ================================================================
+// МИНИ-КАРТА
+// ================================================================
+function drawMinimap() {
+  const W = minimap.width, H = minimap.height;
+  mmCtx.fillStyle = 'rgba(10,10,20,0.9)';
+  mmCtx.fillRect(0, 0, W, H);
+
+  const sx = W / WORLD_W;
+  const sy = H / WORLD_H;
+
+  // Деревья
+  for (const t of world.trees) {
+    if (!t.alive) continue;
+    mmCtx.fillStyle = `hsl(${t.hue}, 60%, 40%)`;
+    mmCtx.fillRect(t.x * sx - 1, t.y * sy - 1, 2, 2);
+  }
+
+  // Клетки
+  for (const c of world.cells) {
+    if (!c.alive) continue;
+    if (c.g.diet < 0.3) mmCtx.fillStyle = '#6f6';
+    else if (c.g.diet > 0.7) mmCtx.fillStyle = '#f66';
+    else mmCtx.fillStyle = '#fc6';
+    mmCtx.fillRect(c.x * sx - 0.5, c.y * sy - 0.5, 1.5, 1.5);
+  }
+
+  // Прямоугольник видимой зоны
+  const viewW = canvas.width / camera.zoom * sx;
+  const viewH = canvas.height / camera.zoom * sy;
+  mmCtx.strokeStyle = '#6cf';
+  mmCtx.lineWidth = 1;
+  mmCtx.strokeRect(
+    camera.x * sx - viewW / 2,
+    camera.y * sy - viewH / 2,
+    viewW, viewH
+  );
+}
+
+minimap.addEventListener('click', e => {
+  const r = minimap.getBoundingClientRect();
+  const mx = (e.clientX - r.left) / minimap.width * WORLD_W;
+  const my = (e.clientY - r.top) / minimap.height * WORLD_H;
+  camera.x = mx; camera.y = my;
+  followCell = null;
+});
+
+// ================================================================
+// ГРАФИК ПОПУЛЯЦИИ
+// ================================================================
+const popHistory = { pop: [], trees: [], food: [], maxLen: 200 };
+
+function drawPopGraph() {
+  const W = popGraph.width, H = popGraph.height;
+  pgCtx.fillStyle = 'rgba(10,10,20,0.9)';
+  pgCtx.fillRect(0, 0, W, H);
+
+  const maxVal = Math.max(100,
+    ...popHistory.pop, ...popHistory.trees, ...popHistory.food
+  );
+
+  const drawLine = (arr, color) => {
+    if (arr.length < 2) return;
+    pgCtx.strokeStyle = color;
+    pgCtx.lineWidth = 1.5;
+    pgCtx.beginPath();
+    for (let i = 0; i < arr.length; i++) {
+      const x = (i / popHistory.maxLen) * W;
+      const y = H - (arr[i] / maxVal) * H;
+      if (i === 0) pgCtx.moveTo(x, y);
+      else pgCtx.lineTo(x, y);
+    }
+    pgCtx.stroke();
+  };
+  drawLine(popHistory.pop, '#6cf');
+  drawLine(popHistory.trees, '#6f6');
+  drawLine(popHistory.food, '#fc6');
+
+  // Легенда
+  pgCtx.font = '10px monospace';
+  pgCtx.fillStyle = '#6cf'; pgCtx.fillText('клетки', 5, 12);
+  pgCtx.fillStyle = '#6f6'; pgCtx.fillText('деревья', 55, 12);
+  pgCtx.fillStyle = '#fc6'; pgCtx.fillText('еда', 115, 12);
+  pgCtx.fillStyle = '#fff';
+  pgCtx.textAlign = 'right';
+  pgCtx.fillText('max ' + Math.round(maxVal), W - 5, 12);
+  pgCtx.textAlign = 'left';
+}
+
+let popTimer = 0;
+function updatePopHistory(dt) {
+  popTimer += dt;
+  if (popTimer > 1) {
+    popTimer = 0;
+    popHistory.pop.push(world.cells.length);
+    popHistory.trees.push(world.trees.length);
+    popHistory.food.push(world.food.length);
+    while (popHistory.pop.length > popHistory.maxLen) {
+      popHistory.pop.shift();
+      popHistory.trees.shift();
+      popHistory.food.shift();
+    }
+  }
+}
+
+// ================================================================
+// ВЫДЕЛЕНИЕ
+// ================================================================
+let selection = [];
+let dragSelect = null;
+let draggingCell = null;
+let dragOffset = { x: 0, y: 0 };
+
+function findCellAt(wx, wy) {
+  for (let i = world.cells.length - 1; i >= 0; i--) {
+    const c = world.cells[i];
+    if (!c.alive) continue;
+    if (Math.hypot(c.x - wx, c.y - wy) <= c.radius + 3) return c;
+  }
+  return null;
+}
+
+canvas.addEventListener('mousedown', e => {
+  if (e.button === 1 || e.button === 2) return;
+  const r = canvas.getBoundingClientRect();
+  const sx = e.clientX - r.left;
+  const sy = e.clientY - r.top;
+  const w = screenToWorld(sx, sy);
+  const cell = findCellAt(w.x, w.y);
+
+  if (e.shiftKey && cell) {
+    draggingCell = cell;
+    dragOffset = { x: cell.x - w.x, y: cell.y - w.y };
+  } else if (cell) {
+    selection = [cell];
+    updateSelectionUI();
+  } else {
+    dragSelect = { x1: sx, y1: sy, x2: sx, y2: sy, add: e.ctrlKey || e.metaKey };
+  }
+});
+
+canvas.addEventListener('mousemove', e => {
+  const r = canvas.getBoundingClientRect();
+  const sx = e.clientX - r.left;
+  const sy = e.clientY - r.top;
+  const w = screenToWorld(sx, sy);
+  const cell = findCellAt(w.x, w.y);
+
+  const tip = document.getElementById('tooltip');
+  if (cell && !dragSelect && !draggingCell) {
+    tip.style.display = 'block';
+    tip.style.left = (e.clientX - r.left + 12) + 'px';
+    tip.style.top = (e.clientY - r.top + 12) + 'px';
+    const mood = cell.memory.mood();
+    const moodStr = mood > 0.2 ? '😊' : mood < -0.2 ? '😟' : '😐';
+    const flags = (cell.infected ? '🦠' : '') + (cell.carryingSeed ? '🌱' : '') + (cell.caringFor ? '👶' : '');
+    tip.textContent = `${moodStr}${flags} gen ${cell.generation} | hp ${cell.hp.toFixed(0)} | e ${cell.energy.toFixed(0)}`;
+  } else {
+    tip.style.display = 'none';
+  }
+
+  if (dragSelect) { dragSelect.x2 = sx; dragSelect.y2 = sy; }
+  if (draggingCell) {
+    draggingCell.x = Math.max(draggingCell.radius, Math.min(world.w - draggingCell.radius, w.x + dragOffset.x));
+    draggingCell.y = Math.max(draggingCell.radius, Math.min(world.h - draggingCell.radius, w.y + dragOffset.y));
+    draggingCell.vx = 0; draggingCell.vy = 0;
+  }
+});
+
+canvas.addEventListener('mouseup', e => {
+  if (dragSelect) {
+    const w1 = screenToWorld(Math.min(dragSelect.x1, dragSelect.x2), Math.min(dragSelect.y1, dragSelect.y2));
+    const w2 = screenToWorld(Math.max(dragSelect.x1, dragSelect.x2), Math.max(dragSelect.y1, dragSelect.y2));
+    const inRect = world.cells.filter(c => c.alive && c.x >= w1.x && c.x <= w2.x && c.y >= w1.y && c.y <= w2.y);
+    if (dragSelect.add) {
+      for (const c of inRect) if (!selection.includes(c)) selection.push(c);
+    } else selection = inRect;
+    dragSelect = null;
+    updateSelectionUI();
+  }
+  draggingCell = null;
+});
+
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const r = canvas.getBoundingClientRect();
+  const sx = e.clientX - r.left;
+  const sy = e.clientY - r.top;
+  const before = screenToWorld(sx, sy);
+  camera.zoom = Math.max(0.15, Math.min(3, camera.zoom * (e.deltaY > 0 ? 0.9 : 1.1)));
+  const after = screenToWorld(sx, sy);
+  camera.x += before.x - after.x;
+  camera.y += before.y - after.y;
+  if (followCell) followCell = null;
+}, { passive: false });
+
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+canvas.addEventListener('mousedown', e => {
+  if (e.button === 1 || e.button === 2) {
+    e.preventDefault();
+    followCell = null;
+    const start = { x: e.clientX, y: e.clientY, cx: camera.x, cy: camera.y };
+    const move = ev => {
+      camera.x = start.cx - (ev.clientX - start.x) / camera.zoom;
+      camera.y = start.cy - (ev.clientY - start.y) / camera.zoom;
+    };
+    const up = () => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+  }
+});
+
+// ================================================================
+// UI
+// ================================================================
+const selectionInfo = document.getElementById('selection-info');
+const geneEditor = document.getElementById('geneEditor');
+const mindPanel = document.getElementById('mind-panel');
+const instinctPanel = document.getElementById('instinct-panel');
+const geneticsPanel = document.getElementById('genetics-panel');
+
+function updateSelectionUI() {
+  selection = selection.filter(c => c.alive);
+  if (selection.length === 0) {
+    selectionInfo.textContent = 'Ничего не выделено';
+    geneEditor.innerHTML = '';
+    mindPanel.textContent = '—';
+    instinctPanel.textContent = '—';
+    geneticsPanel.textContent = '—';
+    return;
+  }
+
+  if (selection.length === 1) {
+    const c = selection[0];
+    const dietLabel = c.g.diet < 0.3 ? '🌱 Травоядное' : c.g.diet > 0.7 ? '🦁 Хищник' : '🍽 Всеядное';
+    const flags = [];
+    if (c.infected) flags.push(`<span style="color:#6f6">🦠 Болен ${c.diseaseTimer.toFixed(0)}с</span>`);
+    if (c.carryingSeed) flags.push(`<span style="color:#8f8">🌱 Несёт семечко</span>`);
+    if (c.caringFor && c.caringFor.alive) flags.push(`<span style="color:#6cf">👶 Защищает ${c.careTimer.toFixed(0)}с</span>`);
+    if (c.colony) flags.push(`<span style="color:hsl(${c.colony.hue},60%,60%)">🧬 #${c.colony.id}</span>`);
+    selectionInfo.innerHTML = `
+      <div class="row"><span>Тип</span><span>${dietLabel}</span></div>
+      <div class="row"><span>Поколение</span><span>${c.generation}</span></div>
+      <div class="row"><span>HP / E</span><span>${c.hp.toFixed(0)} / ${c.energy.toFixed(0)}</span></div>
+      <div style="margin-top:4px">${flags.join(' ')}</div>
+    `;
+    renderMind(c);
+    renderInstincts(c);
+    renderGenetics(c);
+  } else {
+    selectionInfo.innerHTML = `
+      <div class="row"><span>Клеток</span><span>${selection.length}</span></div>
+      <div class="row"><span>Ср. поколение</span><span>${(selection.reduce((a,c)=>a+c.generation,0)/selection.length).toFixed(1)}</span></div>
+    `;
+    mindPanel.textContent = '—';
+    instinctPanel.textContent = '—';
+    geneticsPanel.textContent = '—';
+  }
+  renderGeneEditor();
+}
+
+function renderInstincts(c) {
+  const i = c.instincts;
+  const d = c.drive;
+  const bars = [
+    { name: 'Защита', val: i.protect, color: '#6cf' },
+    { name: 'Тревога', val: i.alarm, color: '#f44' },
+    { name: 'Голод', val: i.hunger, color: '#fa4' },
+    { name: 'Страх', val: i.fear, color: '#f66' },
+    { name: 'Размножение', val: i.breed, color: '#f6c' },
+    { name: 'Охота', val: i.hunt, color: '#f44' },
+    { name: 'Соц', val: i.social, color: '#8cf' },
+  ];
+  instinctPanel.innerHTML = bars.map(b => {
+    const val = b.val;
+    const width = Math.min(100, Math.abs(val) * 100);
+    const bg = val < 0 ? '#6cf' : b.color;
+    return `<div class="instinct-bar">
+      <div class="name">${b.name}</div>
+      <div class="bar"><div style="width:${width}%;background:${bg}"></div></div>
+      <div class="val">${val.toFixed(2)}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderMind(c) {
+  const mood = c.memory.mood();
+  const fear = c.memory.fear();
+  const moodColor = mood > 0.2 ? '#6f9' : mood < -0.2 ? '#f88' : '#8a8a9a';
+  let html = `
+    <div class="row"><span>Настроение</span><span style="color:${moodColor}">${mood.toFixed(2)}</span></div>
+    <div class="mood-bar"><div style="width:${Math.max(0, (mood+1)/2*100)}%;background:${moodColor}"></div></div>
+    <div class="row"><span>Страх</span><span style="color:#f88">${(fear*100).toFixed(0)}%</span></div>
+    <div class="mood-bar"><div style="width:${fear*100}%;background:#f88"></div></div>
+  `;
+  const recent = c.memory.events.slice(-6).reverse();
+  if (recent.length) {
+    html += '<div style="margin-top:4px;color:#666;font-size:10px;">Мысли:</div>';
+    for (const e of recent) {
+      const cls = e.valence > 0.2 ? 'pos' : e.valence < -0.2 ? 'neg' : '';
+      html += `<div class="thought ${cls}">${e.text}</div>`;
+    }
+  }
+  mindPanel.innerHTML = html;
+}
+
+function renderGenetics(c) {
+  const dietLabel = c.g.diet < 0.3 ? '🌱 Травоядное' : c.g.diet > 0.7 ? '🦁 Хищник' : '🍽 Всеядное';
+  const treeTypes = ['🌿 быстрый', '🌳 богатый', '🌲 огромный'];
+  geneticsPanel.innerHTML = `
+    <div class="row"><span>Диета</span><span>${dietLabel}</span></div>
+    <div class="row"><span>Инбред</span><span style="color:${c.inbreeding > 0.5 ? '#c8f' : '#8a8a9a'}">${(c.inbreeding*100).toFixed(0)}%</span></div>
+    <div class="row"><span>Иммунитет</span><span style="color:#6f6">${(c.g.immunity*100).toFixed(0)}%</span></div>
+    <div class="row"><span>Экономия</span><span>${(c.g.frugality*100).toFixed(0)}%</span></div>
+    <div class="row"><span>Красота</span><span style="color:#f6c">${(c.g.beauty*100).toFixed(0)}%</span></div>
+    <div class="row"><span>Забота</span><span style="color:#6cf">${(c.g.parentalCare*100).toFixed(0)}%</span></div>
+    <div class="row"><span>Крик</span><span>${(c.g.alarmDrive*100).toFixed(0)}%</span></div>
+    <div class="row"><span>Феромоны</span><span>${c.g.pheromoneCap < 0.2 ? '—' : (c.g.pheromoneCap*100).toFixed(0) + '%'}</span></div>
+  `;
+}
+
+function renderGeneEditor() {
+  if (selection.length === 0) { geneEditor.innerHTML = ''; return; }
+  const avg = {};
+  for (const k of GENE_KEYS) {
+    avg[k] = selection.reduce((a, c) => a + c.g[k], 0) / selection.length;
+  }
+  geneEditor.innerHTML = '';
+  for (const k of GENE_KEYS) {
+    const d = GENE_DEFS[k];
+    const el = document.createElement('div');
+    el.className = 'gene-slider';
+    el.innerHTML = `
+      <label>${d.label} <b>${avg[k].toFixed(2)}</b></label>
+      <input type="range" min="${d.min}" max="${d.max}" step="${(d.max-d.min)/200}" value="${avg[k]}" data-gene="${k}">
+    `;
+    const slider = el.querySelector('input');
+    slider.addEventListener('input', e => {
+      const val = Number(e.target.value);
+      for (const c of selection) {
+        c.g[k] = clampGene(k, val);
+        if (k === 'maxHp') c.hp = Math.min(c.hp, val);
+        if (k === 'maxEnergy') c.energy = Math.min(c.energy, val);
+      }
+      el.querySelector('b').textContent = val.toFixed(2);
+    });
+    geneEditor.appendChild(el);
+  }
+}
+
+// ================================================================
+// ЦИКЛ
+// ================================================================
+let paused = false;
+let speedMult = 1;
+let lastTime = performance.now();
+let fpsTimer = 0, fpsCounter = 0, fps = 0;
+let autosaveTimer = 0;
+
+function loop(now) {
+  const rawDt = (now - lastTime) / 1000;
+  lastTime = now;
+  const dt = Math.min(0.1, rawDt) * speedMult;
+
+  if (!paused) {
+    world.step(dt);
+    updatePopHistory(dt);
+    autosaveTimer += dt;
+    if (autosaveTimer > 30) {
+      autosaveTimer = 0;
+      try {
+        localStorage.setItem('evolutio_v8_autosave', JSON.stringify(serializeWorld()));
+      } catch (e) {}
+    }
+  }
+  draw();
+  drawPopGraph();
+
+  fpsCounter++;
+  fpsTimer += rawDt;
+  if (fpsTimer > 0.5) {
+    fps = Math.round(fpsCounter / fpsTimer);
+    fpsCounter = 0; fpsTimer = 0;
+  }
+
+  if (Math.floor(now / 150) !== Math.floor((now - rawDt * 1000) / 150)) {
+    updateStats();
+    if (selection.length) updateSelectionUI();
+  }
+
+  requestAnimationFrame(loop);
+}
+
+function updateStats() {
+  document.getElementById('statTick').textContent = world.tick.toFixed(0);
+  document.getElementById('statDay').textContent = world.isDay ? '☀ День' : '🌙 Ночь';
+  document.getElementById('statPop').textContent = world.cells.length;
+  document.getElementById('statTrees').textContent = world.trees.length;
+  document.getElementById('statFood').textContent = world.food.length;
+  document.getElementById('statColonies').textContent = world.colonies.length;
+  let sick = 0;
+  for (const c of world.cells) if (c.infected) sick++;
+  document.getElementById('statSick').textContent = sick;
+  document.getElementById('statFps').textContent = fps;
+}
+
+function serializeWorld() {
+  return {
+    w: world.w, h: world.h,
+    tick: world.tick, births: world.births, deaths: world.deaths,
+    mutRate: world.mutRate, mutStr: world.mutStr,
+    dayPhase: world.dayPhase,
+    cells: world.cells.map(c => ({
+      g: c.g, brain: c.brain, x: c.x, y: c.y, hp: c.hp, energy: c.energy,
+      age: c.age, cooldown: c.cooldown, generation: c.generation,
+      inbreeding: c.inbreeding, infected: c.infected, diseaseTimer: c.diseaseTimer,
+    })),
+    trees: world.trees.map(t => ({ x: t.x, y: t.y, age: t.age, typeIndex: t.typeIndex })),
+    food: world.food,
+    seeds: world.seeds.map(s => ({ x: s.x, y: s.y, age: s.age })),
+  };
+}
+
+// ================================================================
+// КНОПКИ
+// ================================================================
+document.getElementById('btnPause').addEventListener('click', e => {
+  paused = !paused;
+  e.target.textContent = paused ? '▶ Продолжить' : '⏸ Пауза';
+  e.target.classList.toggle('active', paused);
+});
+
+document.getElementById('btnReset').addEventListener('click', () => {
+  if (!confirm('Сбросить мир?')) return;
+  world.cells = []; world.food = []; world.trees = []; world.seeds = [];
+  world.signals = []; world.colonies = [];
+  world.tick = 0; world.births = 0; world.deaths = 0;
+  world.dayPhase = 0;
+  world.pheromones = new PheromoneGrid(world.w, world.h, PHEROMONE_GRID);
+  popHistory.pop = []; popHistory.trees = []; popHistory.food = [];
+  selection = []; followCell = null;
+  // Пересоздаём деревья
+  for (let i = 0; i < 80; i++) {
+    world.trees.push(new Tree(
+      50 + Math.random() * (WORLD_W - 100),
+      50 + Math.random() * (WORLD_H - 100)
+    ));
+  }
+  updateSelectionUI(); updateStats();
+});
+
+document.getElementById('btnFollow').addEventListener('click', e => {
+  if (selection.length === 1) {
+    followCell = selection[0];
+    e.target.classList.toggle('active', true);
+  } else {
+    followCell = null;
+    e.target.classList.remove('active');
+  }
+});
+
+document.getElementById('btnCenter').addEventListener('click', () => {
+  camera.x = WORLD_W / 2;
+  camera.y = WORLD_H / 2;
+  followCell = null;
+});
+
+document.getElementById('btnSpawn1').addEventListener('click', () => {
+  const c = new Cell(randomGenome(), randomBrain(), camera.x, camera.y);
+  world.addCell(c);
+  selection = [c];
+  updateSelectionUI();
+});
+
+document.getElementById('btnSpawn2').addEventListener('click', () => {
+  const g1 = randomGenome(0.2);
+  const g2 = randomGenome(0.8);
+  const b1 = randomBrain();
+  const b2 = mutateBrain(b1, 0.1, 0.1);
+  const c1 = new Cell(g1, b1, camera.x - 30, camera.y);
+  const c2 = new Cell(g2, b2, camera.x + 30, camera.y);
+  world.addCell(c1); world.addCell(c2);
+  selection = [c1, c2];
+  updateSelectionUI();
+});
+
+document.getElementById('btnSpawn10').addEventListener('click', () => {
+  for (let i = 0; i < 10; i++) {
+    const dietBias = Math.random();
+    const c = new Cell(randomGenome(dietBias), randomBrain(),
+      camera.x + (Math.random() - 0.5) * 400,
+      camera.y + (Math.random() - 0.5) * 400);
+    world.addCell(c);
+  }
+  updateStats();
+});
+
+document.getElementById('btnDelete').addEventListener('click', () => {
+  for (const c of selection) c.alive = false;
+  selection = [];
+  updateSelectionUI();
+});
+
+document.getElementById('btnAddTree').addEventListener('click', () => {
+  if (world.trees.length >= MAX_TREES) return;
+  world.trees.push(new Tree(camera.x, camera.y));
+  updateStats();
+});
+
+document.getElementById('btnSave').addEventListener('click', () => {
+  try {
+    localStorage.setItem('evolutio_v8_save', JSON.stringify(serializeWorld()));
+    alert('Сохранено: ' + world.cells.length + ' клеток');
+  } catch (e) { alert('Ошибка: ' + e.message); }
+});
+
+document.getElementById('btnLoad').addEventListener('click', () => {
+  const raw = localStorage.getItem('evolutio_v8_save') || localStorage.getItem('evolutio_v8_autosave');
+  if (!raw) { alert('Нет сохранения'); return; }
+  try {
+    const data = JSON.parse(raw);
+    world.cells = []; world.food = []; world.trees = []; world.seeds = [];
+    world.signals = []; world.colonies = [];
+    world.tick = data.tick; world.births = data.births; world.deaths = data.deaths;
+    world.mutRate = data.mutRate; world.mutStr = data.mutStr;
+    world.dayPhase = data.dayPhase || 0;
+    world.food = data.food || [];
+    for (const cd of data.cells) {
+      const c = new Cell(cd.g, cd.brain, cd.x, cd.y);
+      c.hp = cd.hp; c.energy = cd.energy; c.age = cd.age;
+      c.cooldown = cd.cooldown; c.generation = cd.generation;
+      c.inbreeding = cd.inbreeding || 0;
+      c.infected = cd.infected || false;
+      c.diseaseTimer = cd.diseaseTimer || 0;
+      world.addCell(c);
+    }
+    for (const td of data.trees || []) {
+      const t = new Tree(td.x, td.y, td.typeIndex);
+      t.age = td.age;
+      world.trees.push(t);
+    }
+    for (const sd of data.seeds || []) {
+      const s = new Seed(sd.x, sd.y);
+      s.age = sd.age;
+      world.seeds.push(s);
+    }
+    selection = []; followCell = null;
+    updateSelectionUI(); updateStats();
+  } catch (e) { alert('Ошибка: ' + e.message); }
+});
+
+document.getElementById('speed').addEventListener('input', e => {
+  speedMult = Number(e.target.value);
+  document.getElementById('speedVal').textContent = speedMult.toFixed(1) + 'x';
+});
+document.getElementById('mutRate').addEventListener('input', e => {
+  world.mutRate = Number(e.target.value);
+  document.getElementById('mutRateVal').textContent = world.mutRate.toFixed(2);
+});
+document.getElementById('mutStr').addEventListener('input', e => {
+  world.mutStr = Number(e.target.value);
+  document.getElementById('mutStrVal').textContent = world.mutStr.toFixed(2);
+});
+
+// ================================================================
+// СТАРТ
+// ================================================================
+for (let i = 0; i < 80; i++) {
+  world.trees.push(new Tree(
+    100 + Math.random() * (WORLD_W - 200),
+    100 + Math.random() * (WORLD_H - 200)
+  ));
+}
+for (let i = 0; i < 15; i++) {
+  const dietBias = Math.random();
+  const c = new Cell(randomGenome(dietBias), randomBrain(),
+    200 + Math.random() * (WORLD_W - 400),
+    200 + Math.random() * (WORLD_H - 400));
+  world.addCell(c);
+}
+
+updateStats();
+updateSelectionUI();
+requestAnimationFrame(loop);
+
+window.world = world;
+window.Cell = Cell;
+window.Tree = Tree;
+</script>
+</body>
+</html>
