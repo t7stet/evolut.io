@@ -2,10 +2,11 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<title>Evolut.io</title>
+<meta name="theme-color" content="#0a0a12">
+<title>Evolutio v12.1</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   html, body {
@@ -17,55 +18,150 @@
     user-select: none;
     -webkit-user-select: none;
     touch-action: none;
+    overscroll-behavior: none;
   }
   body { display: flex; }
 
-  #canvas-wrap { flex: 1; position: relative; height: 100%; }
+  #canvas-wrap { flex: 1; position: relative; height: 100%; overflow: hidden; }
   canvas#c { display: block; cursor: crosshair; touch-action: none; }
 
-  #minimap {
-    position: absolute; top: 10px; right: 10px;
-    background: rgba(10,10,20,0.9);
-    border: 1px solid #2a2a3a; border-radius: 3px;
-    cursor: pointer; touch-action: manipulation;
-  }
-  #pop-graph {
-    position: absolute; bottom: 10px; right: 10px;
-    background: rgba(10,10,20,0.9);
-    border: 1px solid #2a2a3a; border-radius: 3px;
-  }
-
-  #ui {
-    width: 460px;
-    background: #12121e;
-    border-left: 1px solid #2a2a3a;
-    padding: 14px;
-    overflow-y: auto;
-    font-size: 12px;
-    height: 100%;
-    transition: transform 0.3s;
-  }
-  #ui::-webkit-scrollbar { width: 8px; }
-  #ui::-webkit-scrollbar-track { background: #0a0a12; }
-  #ui::-webkit-scrollbar-thumb { background: #2a2a3a; border-radius: 4px; }
-
-  #menu-toggle {
-    display: none;
+  /* === Плавающие кнопки поверх игры === */
+  #floating-buttons {
     position: absolute;
-    top: 10px; left: 10px;
-    z-index: 100;
-    background: #1e1e2e;
-    color: #6cf;
+    right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 30;
+  }
+  .fab {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: rgba(20, 20, 35, 0.9);
+    border: 1.5px solid #33334a;
+    color: #c8c8d8;
+    font-size: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: 0.15s;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    touch-action: manipulation;
+  }
+  .fab:active { transform: scale(0.9); background: #2a2a40; border-color: #6cf; }
+  .fab.active { background: #6cf; color: #0a0a12; border-color: #6cf; }
+  .fab.primary { background: rgba(30, 50, 80, 0.9); border-color: #6cf; color: #6cf; }
+  .fab.danger { border-color: #a33; color: #f66; }
+
+  /* === Верхняя панель === */
+  #top-bar {
+    position: absolute;
+    top: calc(8px + env(safe-area-inset-top, 0px));
+    left: 8px;
+    right: 8px;
+    display: flex;
+    gap: 6px;
+    z-index: 20;
+    pointer-events: none;
+  }
+  #top-bar > * { pointer-events: auto; }
+  .top-btn {
+    background: rgba(20, 20, 35, 0.9);
     border: 1px solid #33334a;
-    padding: 10px 14px;
+    color: #c8c8d8;
+    padding: 10px 12px;
     border-radius: 6px;
     font-family: inherit;
-    font-size: 18px;
+    font-size: 14px;
     cursor: pointer;
-    min-width: 44px;
     min-height: 44px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    touch-action: manipulation;
   }
-  #menu-toggle:active { background: #2a2a40; }
+  .top-btn:active { background: #2a2a40; }
+  .top-btn.active { background: #6cf; color: #0a0a12; }
+  #stat-quick {
+    flex: 1;
+    background: rgba(10, 10, 20, 0.75);
+    border: 1px solid #2a2a3a;
+    border-radius: 6px;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 11px;
+    color: #8a8a9a;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  #stat-quick .item { display: flex; gap: 4px; }
+  #stat-quick .item b { color: #9cf; font-weight: normal; }
+
+  /* === Мини-карта === */
+  #minimap {
+    position: absolute;
+    top: calc(64px + env(safe-area-inset-top, 0px));
+    right: 12px;
+    background: rgba(10,10,20,0.85);
+    border: 1px solid #2a2a3a;
+    border-radius: 4px;
+    cursor: pointer;
+    touch-action: manipulation;
+    z-index: 15;
+  }
+
+  /* === График === */
+  #pop-graph {
+    position: absolute;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    left: 12px;
+    background: rgba(10,10,20,0.85);
+    border: 1px solid #2a2a3a;
+    border-radius: 4px;
+    z-index: 15;
+    pointer-events: none;
+  }
+
+  /* === Bottom sheet UI === */
+  #ui {
+    position: fixed;
+    left: 0; right: 0;
+    bottom: 0;
+    height: 78vh;
+    background: #12121e;
+    border-top: 1px solid #2a2a3a;
+    border-radius: 16px 16px 0 0;
+    padding: 14px;
+    padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    overflow-y: auto;
+    font-size: 12px;
+    transform: translateY(100%);
+    transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+    z-index: 50;
+    -webkit-overflow-scrolling: touch;
+  }
+  #ui.open { transform: translateY(0); }
+  #ui::-webkit-scrollbar { width: 6px; }
+  #ui::-webkit-scrollbar-track { background: #0a0a12; }
+  #ui::-webkit-scrollbar-thumb { background: #2a2a3a; border-radius: 3px; }
+
+  /* Handle bar для bottom sheet */
+  #ui-handle {
+    width: 40px;
+    height: 4px;
+    background: #33334a;
+    border-radius: 2px;
+    margin: 0 auto 10px;
+    cursor: grab;
+    touch-action: none;
+  }
 
   #ui h2 {
     font-size: 11px; color: #6cf;
@@ -74,90 +170,96 @@
     border-bottom: 1px solid #22222e;
     padding-bottom: 4px;
   }
-  #ui h2:first-child { margin-top: 0; }
+  #ui h2:first-of-type { margin-top: 0; }
 
-  .row { display: flex; justify-content: space-between; padding: 2px 0; font-size: 11px; }
+  .row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 11px; }
   .row span:last-child { color: #9cf; }
 
   button {
     background: #1e1e2e; color: #c8c8d8;
     border: 1px solid #33334a;
-    padding: 8px 12px; cursor: pointer;
-    font-family: inherit; font-size: 12px;
-    margin: 2px 2px 2px 0; transition: 0.15s;
-    border-radius: 4px;
-    min-height: 36px;
-    min-width: 44px;
+    padding: 10px 12px; cursor: pointer;
+    font-family: inherit; font-size: 13px;
+    margin: 3px 3px 3px 0; transition: 0.15s;
+    border-radius: 6px;
+    min-height: 46px;
+    min-width: 46px;
+    touch-action: manipulation;
   }
-  button:hover { background: #2a2a40; border-color: #6cf; color: #6cf; }
+  button:active { background: #2a2a40; transform: scale(0.97); }
   button.active { background: #6cf; color: #0a0a12; }
-  button.danger:hover { border-color: #f66; color: #f66; }
+  button.danger:active { background: #3a1515; border-color: #f66; }
+
+  /* Плитки спавна — 3 в ряд */
+  .spawn-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin: 6px 0;
+  }
+  .spawn-grid button {
+    margin: 0;
+    padding: 12px 6px;
+    font-size: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    min-height: 68px;
+  }
+  .spawn-grid button .emoji { font-size: 22px; }
+  .spawn-grid button .label { font-size: 10px; color: #999; }
+  .spawn-grid button:active .label { color: #6cf; }
 
   button.herb { border-color: #4a8; color: #6c9; }
-  button.herb:hover { background: #1a3a28; border-color: #6c9; color: #afd; }
   button.omni { border-color: #a83; color: #fc6; }
-  button.omni:hover { background: #3a2810; border-color: #fc6; color: #fda; }
   button.pred { border-color: #a33; color: #f66; }
-  button.pred:hover { background: #3a1515; border-color: #f66; color: #faa; }
   button.scav { border-color: #a86; color: #ca9; }
-  button.scav:hover { background: #3a2818; border-color: #ca9; color: #ecb; }
   button.pack { border-color: #f84; color: #fa6; }
-  button.pack:hover { background: #3a2010; border-color: #fa6; color: #fc9; }
   button.ambush { border-color: #8cf; color: #adf; }
-  button.ambush:hover { background: #103050; border-color: #adf; color: #cff; }
 
-  .gene-slider { margin: 10px 0; padding: 4px 0; }
+  .gene-slider { margin: 12px 0; padding: 4px 0; }
   .gene-slider label {
     display: flex; justify-content: space-between;
-    color: #999; font-size: 10px;
-    margin-bottom: 4px; letter-spacing: 0.5px;
+    color: #999; font-size: 11px;
+    margin-bottom: 6px;
   }
   .gene-slider label b {
     color: #6cf; font-weight: normal;
-    background: #1a1a2a; padding: 1px 6px;
-    border-radius: 3px;
+    background: #1a1a2a; padding: 2px 8px;
+    border-radius: 4px;
   }
 
   input[type=range] {
     -webkit-appearance: none; appearance: none;
-    width: 100%; height: 24px;
+    width: 100%; height: 32px;
     background: transparent; outline: none;
     cursor: pointer; accent-color: #6cf;
     touch-action: manipulation;
   }
   input[type=range]::-webkit-slider-runnable-track {
-    width: 100%; height: 8px;
-    background: #2a2a3a; border-radius: 4px;
+    width: 100%; height: 10px;
+    background: #2a2a3a; border-radius: 5px;
     border: 1px solid #1a1a2a;
   }
   input[type=range]::-webkit-slider-thumb {
     -webkit-appearance: none; appearance: none;
-    width: 22px; height: 22px;
+    width: 26px; height: 26px;
     background: #6cf; border-radius: 50%;
     border: 2px solid #12121e;
-    margin-top: -8px; cursor: pointer;
-    box-shadow: 0 0 6px rgba(102,204,255,0.5);
-  }
-  input[type=range]::-moz-range-track {
-    width: 100%; height: 8px;
-    background: #2a2a3a; border-radius: 4px;
-    border: 1px solid #1a1a2a;
-  }
-  input[type=range]::-moz-range-thumb {
-    width: 22px; height: 22px;
-    background: #6cf; border-radius: 50%;
-    border: 2px solid #12121e; cursor: pointer;
+    margin-top: -9px; cursor: pointer;
+    box-shadow: 0 0 8px rgba(102,204,255,0.6);
   }
 
   #selection-info, #mind-panel, #instinct-panel, #genetics-panel, #group-panel, #hunter-panel {
-    background: #0a0a12; padding: 8px;
+    background: #0a0a12; padding: 10px;
     border: 1px solid #2a2a3a;
     font-size: 11px; margin-bottom: 8px;
-    line-height: 1.4; border-radius: 4px;
+    line-height: 1.5; border-radius: 6px;
   }
   #mind-panel .thought {
     color: #8a8a9a; font-size: 10px;
-    padding: 1px 0;
+    padding: 2px 0;
     border-bottom: 1px dotted #1a1a2a;
   }
   #mind-panel .thought.pos { color: #6f9; }
@@ -167,7 +269,7 @@
     display: flex; align-items: center; gap: 6px;
     padding: 2px 0; font-size: 10px;
   }
-  .instinct-bar .name { width: 90px; color: #888; }
+  .instinct-bar .name { width: 80px; color: #888; }
   .instinct-bar .bar {
     flex: 1; height: 6px;
     background: #1a1a2a; border-radius: 3px;
@@ -176,79 +278,277 @@
   .instinct-bar .bar > div { height: 100%; transition: width 0.15s; }
   .instinct-bar .val { width: 40px; text-align: right; color: #9cf; }
 
-  #tooltip {
-    position: absolute;
-    background: rgba(10,10,20,0.95);
-    border: 1px solid #6cf;
-    padding: 6px 10px; font-size: 11px;
-    pointer-events: none; display: none;
-    z-index: 10; white-space: nowrap;
-    border-radius: 4px;
-  }
-  .hint { color: #555; font-size: 10px; margin: 4px 0; line-height: 1.5; }
+  .hint { color: #555; font-size: 10px; margin: 6px 0; line-height: 1.5; }
 
-  /* Статистика по видам */
   .species-stat {
     display: grid;
     grid-template-columns: auto 1fr auto;
     align-items: center;
-    gap: 6px;
-    padding: 3px 0;
+    gap: 8px;
+    padding: 4px 0;
     font-size: 11px;
   }
-  .species-stat .dot {
-    width: 10px; height: 10px; border-radius: 50%;
-  }
+  .species-stat .dot { width: 10px; height: 10px; border-radius: 50%; }
   .species-stat .name { color: #999; }
-  .species-stat .val { color: #9cf; font-weight: bold; }
+  .species-stat .val { color: #9cf; font-weight: bold; font-size: 12px; }
   .species-stat .bar-wrap {
     grid-column: 1 / -1;
     height: 4px;
     background: #1a1a2a;
     border-radius: 2px;
     overflow: hidden;
-    margin-bottom: 4px;
   }
   .species-stat .bar-fill { height: 100%; transition: width 0.3s; }
 
   .mood-bar {
-    height: 6px; background: #1a1a2a;
-    border-radius: 3px; overflow: hidden;
-    margin-top: 2px; margin-bottom: 4px;
+    height: 8px; background: #1a1a2a;
+    border-radius: 4px; overflow: hidden;
+    margin-top: 4px; margin-bottom: 6px;
   }
   .mood-bar > div { height: 100%; transition: width 0.2s; }
 
-  @media (max-width: 900px) {
-    body { flex-direction: column; }
-    #canvas-wrap { flex: 1; height: auto; }
+  /* === Карточка клетки (при тапе) === */
+  #cell-card {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+    background: rgba(18, 18, 30, 0.96);
+    border: 1.5px solid #6cf;
+    border-radius: 12px;
+    padding: 12px;
+    z-index: 40;
+    display: none;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+    animation: slideUp 0.2s ease-out;
+  }
+  #cell-card.show { display: block; }
+  @keyframes slideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  #cell-card .card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+  #cell-card .portrait {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    border: 2px solid rgba(255,255,255,0.15);
+  }
+  #cell-card .info { flex: 1; min-width: 0; }
+  #cell-card .title { font-size: 13px; color: #6cf; margin-bottom: 2px; }
+  #cell-card .subtitle { font-size: 10px; color: #888; }
+  #cell-card .stats-row {
+    display: flex;
+    gap: 12px;
+    padding: 6px 0;
+    font-size: 11px;
+    border-top: 1px solid #22222e;
+    margin-top: 6px;
+  }
+  #cell-card .stat { flex: 1; text-align: center; }
+  #cell-card .stat .label { color: #666; font-size: 9px; }
+  #cell-card .stat .value { color: #9cf; font-size: 13px; margin-top: 2px; }
+  #cell-card .actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  #cell-card .actions button {
+    flex: 1;
+    margin: 0;
+    padding: 10px 6px;
+    font-size: 11px;
+  }
+
+  /* === Контекстное меню (долгий тап) === */
+  #context-menu {
+    position: absolute;
+    background: rgba(18, 18, 30, 0.98);
+    border: 1.5px solid #6cf;
+    border-radius: 10px;
+    padding: 6px;
+    z-index: 60;
+    display: none;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+    min-width: 180px;
+  }
+  #context-menu.show { display: block; }
+  #context-menu button {
+    width: 100%;
+    margin: 2px 0;
+    text-align: left;
+    padding: 12px 14px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 48px;
+  }
+  #context-menu button .ico { font-size: 18px; width: 24px; text-align: center; }
+
+  /* === Режим выделения === */
+  #select-mode-hint {
+    position: absolute;
+    top: calc(64px + env(safe-area-inset-top, 0px));
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(102, 204, 255, 0.95);
+    color: #0a0a12;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+    z-index: 35;
+    display: none;
+    pointer-events: none;
+    animation: pulse 1.5s infinite;
+  }
+  #select-mode-hint.show { display: block; }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+
+  /* === Тосты === */
+  #toast {
+    position: absolute;
+    top: calc(110px + env(safe-area-inset-top, 0px));
+    left: 50%;
+    transform: translateX(-50%) translateY(-20px);
+    background: rgba(18, 18, 30, 0.95);
+    color: #c8c8d8;
+    padding: 10px 18px;
+    border-radius: 20px;
+    font-size: 12px;
+    border: 1px solid #33334a;
+    z-index: 70;
+    opacity: 0;
+    pointer-events: none;
+    transition: 0.3s;
+    white-space: nowrap;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  #toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* === Список выделенных === */
+  #selected-list {
+    position: absolute;
+    right: 12px;
+    top: calc(64px + env(safe-area-inset-top, 0px) + 100px);
+    max-width: 140px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 25;
+    display: none;
+    gap: 4px;
+    flex-direction: column;
+    -webkit-overflow-scrolling: touch;
+  }
+  #selected-list.show { display: flex; }
+  .selected-chip {
+    background: rgba(20, 20, 35, 0.9);
+    border: 1px solid #33334a;
+    border-radius: 20px;
+    padding: 6px 10px;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  .selected-chip:active { background: #2a2a40; }
+  .selected-chip .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .selected-chip .text { flex: 1; color: #c8c8d8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* === Desktop fallback === */
+  @media (min-width: 901px) {
+    #floating-buttons { display: none; }
+    #top-bar { display: none; }
+    #cell-card, #context-menu, #selected-list { display: none !important; }
+    #select-mode-hint { display: none !important; }
     #ui {
-      position: absolute;
-      bottom: 0; left: 0; right: 0;
-      width: 100%;
-      height: 72vh;
-      border-left: none;
-      border-top: 1px solid #2a2a3a;
-      transform: translateY(100%);
-      z-index: 50;
-      border-radius: 12px 12px 0 0;
+      position: static;
+      width: 440px;
+      height: 100%;
+      border-radius: 0;
+      border-left: 1px solid #2a2a3a;
+      border-top: none;
+      transform: none;
+      padding: 14px;
     }
-    #ui.open { transform: translateY(0); }
-    #menu-toggle { display: block; }
+    #ui-handle { display: none; }
+    #minimap { top: 10px; right: 10px; width: 200px; height: 133px; }
+    #pop-graph { bottom: 10px; left: auto; right: 10px; width: 400px; height: 128px; }
   }
 </style>
 </head>
 <body>
 
-<button id="menu-toggle">☰</button>
-
 <div id="canvas-wrap">
   <canvas id="c"></canvas>
   <canvas id="minimap"></canvas>
   <canvas id="pop-graph"></canvas>
-  <div id="tooltip"></div>
+
+  <!-- Top bar (mobile) -->
+  <div id="top-bar">
+    <button class="top-btn" id="top-menu">☰</button>
+    <div id="stat-quick">
+      <div class="item">🌱 <b id="q-herb">0</b></div>
+      <div class="item">🍽 <b id="q-omni">0</b></div>
+      <div class="item">🦁 <b id="q-pred">0</b></div>
+      <div class="item">🥩 <b id="q-scav">0</b></div>
+      <div class="item" id="q-fps-wrap">⚡ <b id="q-fps">0</b></div>
+    </div>
+    <button class="top-btn" id="top-day">☀</button>
+  </div>
+
+  <!-- Floating action buttons -->
+  <div id="floating-buttons">
+    <button class="fab" id="fab-pause" title="Пауза">⏸</button>
+    <button class="fab primary" id="fab-follow" title="Следить">🎯</button>
+    <button class="fab" id="fab-select" title="Выделение рамкой">🔲</button>
+    <button class="fab primary" id="fab-spawn" title="Спавн">➕</button>
+  </div>
+
+  <!-- Select mode hint -->
+  <div id="select-mode-hint">Веди пальцем — выделение рамкой</div>
+
+  <!-- Selected cells chips -->
+  <div id="selected-list"></div>
+
+  <!-- Cell card -->
+  <div id="cell-card"></div>
+
+  <!-- Context menu -->
+  <div id="context-menu"></div>
+
+  <!-- Toast -->
+  <div id="toast"></div>
 </div>
 
+<!-- Bottom sheet UI -->
 <div id="ui">
+  <div id="ui-handle"></div>
+
   <h2>Управление</h2>
   <div>
     <button id="btnPause">⏸ Пауза</button>
@@ -258,18 +558,34 @@
   </div>
 
   <h2>Спавн по видам</h2>
-  <div>
-    <button id="btnSpawnHerb" class="herb">+ 🌱 Травоядное</button>
-    <button id="btnSpawnOmni" class="omni">+ 🍽 Всеядное</button>
-    <button id="btnSpawnPred" class="pred">+ 🦁 Хищник</button>
+  <div class="spawn-grid">
+    <button class="herb" id="btnSpawnHerb">
+      <span class="emoji">🌱</span>
+      <span class="label">Травоядное</span>
+    </button>
+    <button class="omni" id="btnSpawnOmni">
+      <span class="emoji">🍽</span>
+      <span class="label">Всеядное</span>
+    </button>
+    <button class="pred" id="btnSpawnPred">
+      <span class="emoji">🦁</span>
+      <span class="label">Хищник</span>
+    </button>
+    <button class="scav" id="btnSpawnScav">
+      <span class="emoji">🥩</span>
+      <span class="label">Падальщик</span>
+    </button>
+    <button class="pack" id="btnSpawnPack">
+      <span class="emoji">🐺</span>
+      <span class="label">Стайный</span>
+    </button>
+    <button class="ambush" id="btnSpawnAmbush">
+      <span class="emoji">🤫</span>
+      <span class="label">Засадник</span>
+    </button>
   </div>
   <div>
-    <button id="btnSpawnScav" class="scav">+ 🥩 Падальщик</button>
-    <button id="btnSpawnPack" class="pack">+ 🐺 Стайный</button>
-    <button id="btnSpawnAmbush" class="ambush">+ 🤫 Засадник</button>
-  </div>
-  <div>
-    <button id="btnSpawnRandom">+ 🎲 Случайных 10</button>
+    <button id="btnSpawnRandom">🎲 10 случайных</button>
     <button id="btnAddTree">🌳 Дерево</button>
     <button id="btnDelete" class="danger">✕ Удалить</button>
   </div>
@@ -281,13 +597,18 @@
   </div>
 
   <div class="hint">
-    Клик — выбрать. Drag — рамка. Shift+Drag — тащить.<br>
-    ПКМ/2 пальца — пан. Колесо/пинч — зум.
+    <b>Жесты:</b><br>
+    • Тап по клетке — выбрать<br>
+    • Двойной тап — следить<br>
+    • Долгий тап по клетке — меню<br>
+    • Долгий тап по пустому — рамка<br>
+    • 1 палец — пан, 2 — зум<br>
+    • Кнопка 🔲 — режим выделения
   </div>
 
   <h2>Экосистема</h2>
   <div id="species-stats"></div>
-  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 8px;">
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px;">
     <div class="row"><span>Тик</span><span id="statTick">0</span></div>
     <div class="row"><span>Время</span><span id="statDay">☀</span></div>
     <div class="row"><span>Группы</span><span id="statGroups">0</span></div>
@@ -295,7 +616,7 @@
     <div class="row"><span>Трупы</span><span id="statMeat">0</span></div>
     <div class="row"><span>Больные</span><span id="statSick">0</span></div>
     <div class="row"><span>FPS</span><span id="statFps">0</span></div>
-    <div class="row"><span>Рожд./Смер.</span><span id="statBD">0/0</span></div>
+    <div class="row"><span>Рожд/Смер</span><span id="statBD">0/0</span></div>
   </div>
 
   <div class="gene-slider">
@@ -352,6 +673,13 @@ const GROUP_MIN_SIZE = 3;
 const PACK_RADIUS = 200;
 const PACK_MIN_SIZE = 2;
 
+// Тач-константы
+const TAP_MAX_DURATION = 250;
+const TAP_MAX_MOVEMENT = 12;
+const LONG_TAP_DURATION = 500;
+const DOUBLE_TAP_WINDOW = 300;
+const TOUCH_PADDING = 20;
+
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
 const minimap = document.getElementById('minimap');
@@ -371,13 +699,13 @@ function resize() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   isMobile = window.innerWidth <= 900;
 
-  const mmW = isMobile ? 120 : 200;
+  const mmW = isMobile ? 110 : 200;
   const mmH = mmW * 0.665;
   minimap.width = mmW; minimap.height = mmH;
   minimap.style.width = mmW + 'px';
   minimap.style.height = mmH + 'px';
 
-  const pgW = isMobile ? 240 : 400;
+  const pgW = isMobile ? 180 : 400;
   const pgH = pgW * 0.32;
   popGraph.width = pgW; popGraph.height = pgH;
   popGraph.style.width = pgW + 'px';
@@ -385,10 +713,6 @@ function resize() {
 }
 resize();
 window.addEventListener('resize', resize);
-
-document.getElementById('menu-toggle').addEventListener('click', () => {
-  document.getElementById('ui').classList.toggle('open');
-});
 
 // ================================================================
 // ГЕНОМ
@@ -613,10 +937,7 @@ class Memory {
 }
 
 class HuntingMemory {
-  constructor() {
-    this.spots = [];
-    this.enemies = [];
-  }
+  constructor() { this.spots = []; this.enemies = []; }
   addSpot(x, y, success = 1) {
     let nearest = null, nearDist = 100;
     for (const s of this.spots) {
@@ -928,7 +1249,6 @@ class Cell {
       hunger: 0, fear: 0, breed: 0, hunt: 0, social: 0, wander: 0,
       protect: 0, alarm: 0, group: 0, pack: 0, ambush: 0, scavenge: 0,
     };
-
     this.inbreeding = 0;
     this.group = null;
     this.pack = null;
@@ -939,7 +1259,6 @@ class Cell {
     this.infected = false;
     this.diseaseTimer = 0;
     this.drive = { hunger: 0, sex: 0, hunt: 0, social: 0 };
-
     this.huntingMemory = new HuntingMemory();
     this.ambushTimer = 0;
     this.threatShown = 0;
@@ -984,7 +1303,6 @@ class Cell {
       if (other === this || !other.alive) continue;
       const d = Math.hypot(other.x - this.x, other.y - this.y);
       if (d > r) continue;
-
       const gDist = geneticDistance(this.g, other.g);
       const isKin = gDist < 0.25;
 
@@ -998,7 +1316,6 @@ class Cell {
         }
       } else {
         if (d < enemyDist) { enemyDist = d; nearestEnemy = other; }
-
         if (this.isPredator) {
           const healthRatio = other.hp / other.g.maxHp;
           const targetRisk = (other.g.aggression + other.g.predation) * healthRatio + other.g.radius / 20;
@@ -1007,15 +1324,13 @@ class Cell {
           const tooRisky = riskDiff > 0.3 && this.g.riskTolerance < 0.6;
           const enemyMem = this.huntingMemory.isEnemy(other.id);
           const isRememberedEnemy = enemyMem > 20;
-
           if (!tooRisky && !isRememberedEnemy) {
-            let preyScore = 0;
             const dietDiff = Math.abs(other.g.diet - this.g.preyPreference);
             const dietMatch = 1 - dietDiff;
             const weakness = 1 - healthRatio;
             const sizeMatch = other.g.radius / 14;
             const wounded = other.hp < other.g.maxHp * 0.5 ? 0.4 : 0;
-            preyScore = dietMatch * 0.5 + weakness * 0.5 + sizeMatch * 0.2 + wounded;
+            let preyScore = dietMatch * 0.5 + weakness * 0.5 + sizeMatch * 0.2 + wounded;
             const hunger = 1 - this.energy / this.g.maxEnergy;
             preyScore *= (0.5 + hunger);
             if (preyScore > preyScoreBest && d < r) {
@@ -1044,12 +1359,9 @@ class Cell {
     }
 
     return {
-      nearestFood, foodDist,
-      nearestMeat, meatDist,
-      nearestTree, treeDist,
-      nearestKin, kinDist,
-      nearestMate, mateDist,
-      nearestEnemy, enemyDist,
+      nearestFood, foodDist, nearestMeat, meatDist,
+      nearestTree, treeDist, nearestKin, kinDist,
+      nearestMate, mateDist, nearestEnemy, enemyDist,
       nearestPrey, preyDist, preyScore: preyScoreBest,
       nearestAlarm, alarmDist,
       nearestGroupKin, groupKinDist,
@@ -1062,24 +1374,16 @@ class Cell {
     const energyRatio = this.energy / this.g.maxEnergy;
     if (energyRatio < 0.5) {
       this.drive.hunger = Math.min(1, this.drive.hunger + dt * (1 - energyRatio) * 0.5);
-    } else {
-      this.drive.hunger = Math.max(0, this.drive.hunger - dt * 0.3);
-    }
+    } else this.drive.hunger = Math.max(0, this.drive.hunger - dt * 0.3);
     if (this.cooldown === 0 && energyRatio > this.g.breedThreshold) {
       this.drive.sex = Math.min(1, this.drive.sex + dt * 0.3);
-    } else {
-      this.drive.sex = Math.max(0, this.drive.sex - dt * 0.2);
-    }
+    } else this.drive.sex = Math.max(0, this.drive.sex - dt * 0.2);
     if (this.g.aggression > 0.4) {
       this.drive.hunt = Math.min(1, this.drive.hunt + dt * this.g.aggression * 0.2);
-    } else {
-      this.drive.hunt = Math.max(0, this.drive.hunt - dt * 0.3);
-    }
+    } else this.drive.hunt = Math.max(0, this.drive.hunt - dt * 0.3);
     if (!this.group && !this.pack) {
       this.drive.social = Math.min(1, this.drive.social + dt * 0.1);
-    } else {
-      this.drive.social = Math.max(0, this.drive.social - dt * 0.3);
-    }
+    } else this.drive.social = Math.max(0, this.drive.social - dt * 0.3);
   }
 
   shouldEatTree(s) {
@@ -1127,9 +1431,7 @@ class Cell {
         const closeness = 1 - targetDist / s.senseR;
         const partnerReady = target.energy > target.g.maxEnergy * 0.5;
         breed = Math.max(g.breedDrive * (0.5 + 0.5 * closeness) * (partnerReady ? 1 : 0.4), d.sex * 0.8);
-      } else {
-        breed = d.sex * 0.6;
-      }
+      } else breed = d.sex * 0.6;
     }
 
     let hunt = 0;
@@ -1150,9 +1452,7 @@ class Cell {
     let ambush = 0;
     if (isPredator && s.nearestPrey && g.huntStyle > 0.6) {
       const preyCloseness = 1 - s.preyDist / s.senseR;
-      if (preyCloseness < 0.4 && preyCloseness > 0.1) {
-        ambush = g.huntStyle * (1 - preyCloseness);
-      }
+      if (preyCloseness < 0.4 && preyCloseness > 0.1) ambush = g.huntStyle * (1 - preyCloseness);
     }
 
     let social = 0;
@@ -1215,10 +1515,8 @@ class Cell {
           if (gDist > 0.25) {
             const dx = other.x - this.x, dy = other.y - this.y;
             const dd = Math.hypot(dx, dy) || 1;
-            result.dx = dx / dd * 1.5;
-            result.dy = dy / dd * 1.5;
-            result.type = 'protect';
-            result.target = other;
+            result.dx = dx / dd * 1.5; result.dy = dy / dd * 1.5;
+            result.type = 'protect'; result.target = other;
             return result;
           }
         }
@@ -1227,8 +1525,7 @@ class Cell {
       const dy = this.caringFor.y - this.y;
       const dd = Math.hypot(dx, dy) || 1;
       if (dd > 30) {
-        result.dx = dx / dd * 1.0;
-        result.dy = dy / dd * 1.0;
+        result.dx = dx / dd * 1.0; result.dy = dy / dd * 1.0;
         result.type = 'protect_stay';
         return result;
       }
@@ -1238,10 +1535,8 @@ class Cell {
       const dx = s.nearestAlarm.x - this.x;
       const dy = s.nearestAlarm.y - this.y;
       const d = Math.hypot(dx, dy) || 1;
-      result.dx = dx / d * 1.8;
-      result.dy = dy / d * 1.8;
-      result.type = 'seek_alarm';
-      result.target = s.nearestAlarm;
+      result.dx = dx / d * 1.8; result.dy = dy / d * 1.8;
+      result.type = 'seek_alarm'; result.target = s.nearestAlarm;
       return result;
     }
 
@@ -1249,10 +1544,8 @@ class Cell {
       const dx = this.x - s.nearestEnemy.x;
       const dy = this.y - s.nearestEnemy.y;
       const d = Math.hypot(dx, dy) || 1;
-      result.dx = dx / d * inst.fear * 2;
-      result.dy = dy / d * inst.fear * 2;
-      result.type = 'flee';
-      result.target = s.nearestEnemy;
+      result.dx = dx / d * inst.fear * 2; result.dy = dy / d * inst.fear * 2;
+      result.type = 'flee'; result.target = s.nearestEnemy;
       return result;
     }
 
@@ -1272,8 +1565,7 @@ class Cell {
       const d = Math.hypot(dx, dy) || 1;
       result.dx = dx / d * inst.scavenge * 1.5;
       result.dy = dy / d * inst.scavenge * 1.5;
-      result.type = 'scavenge';
-      result.target = s.nearestMeat;
+      result.type = 'scavenge'; result.target = s.nearestMeat;
       return result;
     }
 
@@ -1292,8 +1584,7 @@ class Cell {
         const d = Math.hypot(dx, dy) || 1;
         result.dx = dx / d * inst.hunger * 2;
         result.dy = dy / d * inst.hunger * 2;
-        result.type = 'seek_tree';
-        result.target = s.nearestTree;
+        result.type = 'seek_tree'; result.target = s.nearestTree;
         return result;
       }
       if (s.nearestFood) {
@@ -1302,8 +1593,7 @@ class Cell {
         const d = Math.hypot(dx, dy) || 1;
         result.dx = dx / d * inst.hunger * 2;
         result.dy = dy / d * inst.hunger * 2;
-        result.type = 'seek_food';
-        result.target = s.nearestFood;
+        result.type = 'seek_food'; result.target = s.nearestFood;
         return result;
       }
     }
@@ -1314,8 +1604,7 @@ class Cell {
       const d = Math.hypot(dx, dy) || 1;
       result.dx = dx / d * inst.hunt * 1.5;
       result.dy = dy / d * inst.hunt * 1.5;
-      result.type = 'hunt';
-      result.target = s.nearestPrey;
+      result.type = 'hunt'; result.target = s.nearestPrey;
       return result;
     }
 
@@ -1326,8 +1615,7 @@ class Cell {
         const dy = bestSpot.y - this.y;
         const d = Math.hypot(dx, dy);
         if (d > 100) {
-          result.dx = dx / d * 0.8;
-          result.dy = dy / d * 0.8;
+          result.dx = dx / d * 0.8; result.dy = dy / d * 0.8;
           result.type = 'patrol';
           return result;
         }
@@ -1342,8 +1630,7 @@ class Cell {
         const d = Math.hypot(dx, dy) || 1;
         result.dx = dx / d * inst.breed * 1.5;
         result.dy = dy / d * inst.breed * 1.5;
-        result.type = 'seek_mate';
-        result.target = target;
+        result.type = 'seek_mate'; result.target = target;
         return result;
       }
     }
@@ -1353,8 +1640,7 @@ class Cell {
         const dx = this.pack.alpha.x - this.x;
         const dy = this.pack.alpha.y - this.y;
         const d = Math.hypot(dx, dy) || 1;
-        result.dx = dx / d * inst.pack;
-        result.dy = dy / d * inst.pack;
+        result.dx = dx / d * inst.pack; result.dy = dy / d * inst.pack;
         result.type = 'follow_alpha';
         return result;
       }
@@ -1362,8 +1648,7 @@ class Cell {
         const dx = s.nearestPackKin.x - this.x;
         const dy = s.nearestPackKin.y - this.y;
         const d = Math.hypot(dx, dy) || 1;
-        result.dx = dx / d * inst.pack;
-        result.dy = dy / d * inst.pack;
+        result.dx = dx / d * inst.pack; result.dy = dy / d * inst.pack;
         result.type = 'join_pack';
         return result;
       }
@@ -1479,9 +1764,7 @@ class Cell {
 
     this.updateDrives(dt, world);
 
-    if (this.caringFor && (!this.caringFor.alive || this.careTimer <= 0)) {
-      this.caringFor = null;
-    }
+    if (this.caringFor && (!this.caringFor.alive || this.careTimer <= 0)) this.caringFor = null;
 
     const instinctResult = this.computeInstincts(world);
     const decision = this.modulate(instinctResult, world);
@@ -1507,12 +1790,9 @@ class Cell {
     const alarmInstinct = energyRatio < 0.3 ? this.g.alarmDrive * (0.3 - energyRatio) * 3 : 0;
     const wantSignal = Math.max(decision.signal, alarmInstinct);
     if (wantSignal > 0.4 && this.signalCooldown === 0 && this.g.signalPower > 0.2) {
-      world.signals.push(new Signal(
-        this.x, this.y, this.g.hue,
+      world.signals.push(new Signal(this.x, this.y, this.g.hue,
         Math.round(this.g.signalType),
-        Math.max(this.g.signalPower, alarmInstinct),
-        this.id
-      ));
+        Math.max(this.g.signalPower, alarmInstinct), this.id));
       this.signalCooldown = 2;
     }
 
@@ -1537,7 +1817,6 @@ class Cell {
 
     this.updateGroup(world, dt);
     if (this.isPredator) this.updatePack(world, dt);
-
     this.interactWithNeighbors(world, dt, decision);
   }
 
@@ -1581,9 +1860,7 @@ class Cell {
       if (this.pack.cells.length < PACK_MIN_SIZE) {
         this.pack.removeCell(this);
         this.pack = null;
-      } else {
-        if (Math.random() < 0.01) this.pack.recomputeAlpha();
-      }
+      } else if (Math.random() < 0.01) this.pack.recomputeAlpha();
     } else {
       if (this.g.packDrive < 0.4) return;
       const nearby = world.cellHash.query(this.x, this.y);
@@ -1636,8 +1913,7 @@ class Cell {
       const wantBetrayal = isGroupMember && betrayalChance > 0.3 && Math.random() < 0.02;
 
       const isTargetPrey = decision.target === other && (decision.type === 'hunt' || decision.type === 'scavenge');
-      const shouldAttack = isTargetPrey ||
-                          decision.type === 'protect' || wantBetrayal ||
+      const shouldAttack = isTargetPrey || decision.type === 'protect' || wantBetrayal ||
                           (this.g.aggression > 0.5 && !isKin && !isGroupMember && !isPackMember);
 
       if (shouldAttack && !isPackMember && this.g.aggression > 0.2) {
@@ -1690,17 +1966,13 @@ class Cell {
         other.diseaseTimer = 10 + Math.random() * 10;
       }
 
-      if (
-        this.cooldown === 0 && other.cooldown === 0 &&
-        !this.infected && !other.infected &&
-        this.energy > this.g.maxEnergy * this.g.breedThreshold &&
-        other.energy > other.g.maxEnergy * other.g.breedThreshold
-      ) {
+      if (this.cooldown === 0 && other.cooldown === 0 &&
+          !this.infected && !other.infected &&
+          this.energy > this.g.maxEnergy * this.g.breedThreshold &&
+          other.energy > other.g.maxEnergy * other.g.breedThreshold) {
         const canOutbreed = this.g.outbreedDrive > 0.5 && gDist < 0.7;
         const canHybrid = gDist >= 0.25 && gDist < 0.5 && this.g.outbreedDrive > 0.7;
-        if (isKin || canOutbreed || canHybrid) {
-          this._breedWith(other, world, gDist);
-        }
+        if (isKin || canOutbreed || canHybrid) this._breedWith(other, world, gDist);
       }
     }
   }
@@ -1708,36 +1980,29 @@ class Cell {
   _breedWith(partner, world, gDist) {
     let inbredPenalty = 0;
     if (gDist < 0.15) inbredPenalty = (0.15 - gDist) / 0.15 * 0.5;
-
     const childGenome = crossover(this.g, partner.g, world.mutRate, world.mutStr, inbredPenalty);
     const childBrain = crossoverBrain(this.brain, partner.brain, world.mutRate, world.mutStr);
-
     const angle = Math.random() * Math.PI * 2;
     const dist = this.radius + partner.radius + 5;
     const cx = Math.max(10, Math.min(world.w - 10, (this.x + partner.x) / 2 + Math.cos(angle) * dist));
     const cy = Math.max(10, Math.min(world.h - 10, (this.y + partner.y) / 2 + Math.sin(angle) * dist));
-
     const child = new Cell(childGenome, childBrain, cx, cy);
     child.generation = Math.max(this.generation, partner.generation) + 1;
     const parentInbreed = (this.inbreeding + partner.inbreeding) / 2;
     child.inbreeding = Math.min(1, parentInbreed * 0.5 + (1 - gDist) * 0.5);
     child.energy = childGenome.maxEnergy * 0.5 * (1 - child.inbreeding * 0.4);
     child.hp = childGenome.maxHp * 0.5 * (1 - child.inbreeding * 0.3);
-
     if (child.inbreeding > 0.7 && Math.random() < child.inbreeding * 0.15) {
       world.births++; world.deaths++;
       return;
     }
-
     child.think_('родился!', 0.5);
     world.addCell(child);
-
     this.energy -= this.energy * this.g.breedCost;
     partner.energy -= partner.energy * partner.g.breedCost;
     this.cooldown = this.g.breedCooldown;
     partner.cooldown = partner.g.breedCooldown;
     this.flash = 1; partner.flash = 1;
-
     if (this.g.parentalCare > 0.4) {
       this.caringFor = child;
       this.careTimer = 15 * this.g.parentalCare;
@@ -1752,22 +2017,12 @@ class Cell {
 class World {
   constructor(w, h) {
     this.w = w; this.h = h;
-    this.cells = [];
-    this.food = [];
-    this.trees = [];
-    this.seeds = [];
-    this.signals = [];
-    this.groups = [];
-    this.packs = [];
-    this.tick = 0;
-    this.births = 0;
-    this.deaths = 0;
-    this.mutRate = 0.2;
-    this.mutStr = 0.15;
+    this.cells = []; this.food = []; this.trees = []; this.seeds = [];
+    this.signals = []; this.groups = []; this.packs = [];
+    this.tick = 0; this.births = 0; this.deaths = 0;
+    this.mutRate = 0.2; this.mutStr = 0.15;
     this.pheromoneDecayTimer = 0;
-    this.dayPhase = 0;
-    this.isDay = true;
-
+    this.dayPhase = 0; this.isDay = true;
     this.cellHash = new SpatialHash(w, h, HASH_CELL);
     this.foodHash = new SpatialHash(w, h, HASH_CELL);
     this.pheromones = new PheromoneGrid(w, h, PHEROMONE_GRID);
@@ -1776,8 +2031,7 @@ class World {
   addCell(c) { this.cells.push(c); }
 
   rebuildHashes() {
-    this.cellHash.clear();
-    this.foodHash.clear();
+    this.cellHash.clear(); this.foodHash.clear();
     for (const c of this.cells) if (c.alive) this.cellHash.insert(c.x, c.y, c);
     for (const f of this.food) this.foodHash.insert(f.x, f.y, f);
   }
@@ -1839,17 +2093,13 @@ class World {
           if (f.isMeat) {
             efficiency = 0.3 + c.g.diet * 1.2;
             if (c.g.scavenger > 0.5) efficiency *= 1.5;
-          } else {
-            efficiency = 0.3 + (1 - c.g.diet) * 1.2;
-          }
+          } else efficiency = 0.3 + (1 - c.g.diet) * 1.2;
           c.energy = Math.min(c.g.maxEnergy, c.energy + f.energy * efficiency);
           c.hp = Math.min(c.g.maxHp, c.hp + f.energy * 0.2 * efficiency);
           if (f.fromTree && c.g.diet < 0.6 && !c.carryingSeed && Math.random() < 0.02) {
             c.carryingSeed = true; c.seedTimer = 0;
           }
-          if (f.fromTree && c.g.frugality > 0.6 && Math.random() < 0.05) {
-            c.think_('экономно поел', 0.3);
-          }
+          if (f.fromTree && c.g.frugality > 0.6 && Math.random() < 0.05) c.think_('экономно поел', 0.3);
           this.food.splice(i, 1);
         }
       }
@@ -1912,7 +2162,7 @@ class World {
 // КАМЕРА
 // ================================================================
 const world = new World(WORLD_W, WORLD_H);
-const camera = { x: WORLD_W / 2, y: WORLD_H / 2, zoom: isMobile ? 0.4 : 0.7 };
+const camera = { x: WORLD_W / 2, y: WORLD_H / 2, zoom: isMobile ? 0.45 : 0.7 };
 let followCell = null;
 
 function worldToScreen(wx, wy) {
@@ -2206,11 +2456,11 @@ function draw() {
     const y = Math.min(dragSelect.y1, dragSelect.y2);
     const w = Math.abs(dragSelect.x2 - dragSelect.x1);
     const h = Math.abs(dragSelect.y2 - dragSelect.y1);
-    ctx.fillStyle = 'rgba(102, 204, 255, 0.1)';
+    ctx.fillStyle = 'rgba(102, 204, 255, 0.15)';
     ctx.fillRect(x, y, w, h);
     ctx.strokeStyle = '#6cf';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([4, 4]);
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 4]);
     ctx.strokeRect(x, y, w, h);
     ctx.setLineDash([]);
   }
@@ -2231,10 +2481,9 @@ function draw() {
 
 function drawMinimap() {
   const W = minimap.width, H = minimap.height;
-  mmCtx.fillStyle = 'rgba(10,10,20,0.9)';
+  mmCtx.fillStyle = 'rgba(10,10,20,0.85)';
   mmCtx.fillRect(0, 0, W, H);
-  const sx = W / WORLD_W;
-  const sy = H / WORLD_H;
+  const sx = W / WORLD_W, sy = H / WORLD_H;
 
   for (const t of world.trees) {
     if (!t.alive) continue;
@@ -2248,14 +2497,14 @@ function drawMinimap() {
       else mmCtx.fillStyle = '#f44';
     } else if (c.isHerbivore) mmCtx.fillStyle = '#6f6';
     else mmCtx.fillStyle = '#fc6';
-    mmCtx.fillRect(c.x * sx - 0.5, c.y * sy - 0.5, 1.5, 1.5);
+    mmCtx.fillRect(c.x * sx - 0.5, c.y * sy - 0.5, 2, 2);
   }
 
   const dpr = window.devicePixelRatio || 1;
   const viewW = canvas.width / dpr / camera.zoom * sx;
   const viewH = canvas.height / dpr / camera.zoom * sy;
   mmCtx.strokeStyle = '#6cf';
-  mmCtx.lineWidth = 1;
+  mmCtx.lineWidth = 1.5;
   mmCtx.strokeRect(camera.x * sx - viewW / 2, camera.y * sy - viewH / 2, viewW, viewH);
 }
 
@@ -2268,33 +2517,22 @@ minimap.addEventListener('click', e => {
 });
 
 // ================================================================
-// ГРАФИК — ПОЛНЫЙ (все виды)
+// ГРАФИК
 // ================================================================
-const popHistory = {
-  herb: [], omni: [], pred: [], scav: [], trees: [],
-  maxLen: 250,
-};
+const popHistory = { herb: [], omni: [], pred: [], scav: [], trees: [], maxLen: 250 };
 
 function drawPopGraph() {
   const W = popGraph.width, H = popGraph.height;
   pgCtx.fillStyle = 'rgba(10,10,20,0.9)';
   pgCtx.fillRect(0, 0, W, H);
-
-  const allVals = [
-    ...popHistory.herb, ...popHistory.omni, ...popHistory.pred,
-    ...popHistory.scav, ...popHistory.trees,
-  ];
+  const allVals = [...popHistory.herb, ...popHistory.omni, ...popHistory.pred, ...popHistory.scav, ...popHistory.trees];
   const maxVal = Math.max(20, ...allVals);
 
-  // Сетка
   pgCtx.strokeStyle = 'rgba(42,42,58,0.5)';
   pgCtx.lineWidth = 1;
   for (let i = 1; i < 4; i++) {
     const y = (i / 4) * H;
-    pgCtx.beginPath();
-    pgCtx.moveTo(0, y);
-    pgCtx.lineTo(W, y);
-    pgCtx.stroke();
+    pgCtx.beginPath(); pgCtx.moveTo(0, y); pgCtx.lineTo(W, y); pgCtx.stroke();
   }
 
   const drawLine = (arr, color) => {
@@ -2310,50 +2548,17 @@ function drawPopGraph() {
     }
     pgCtx.stroke();
   };
-
   drawLine(popHistory.trees, '#4a8');
   drawLine(popHistory.herb, '#6c9');
   drawLine(popHistory.omni, '#fc6');
   drawLine(popHistory.pred, '#f44');
   drawLine(popHistory.scav, '#ca9');
 
-  // Легенда — 2 строки
-  pgCtx.font = '10px monospace';
+  pgCtx.font = '9px monospace';
   pgCtx.textAlign = 'left';
   pgCtx.textBaseline = 'top';
-
-  let x = 4;
-  const y1 = 4;
-  pgCtx.fillStyle = '#6c9';
-  pgCtx.fillText('● траво', x, y1); x += 55;
-  pgCtx.fillStyle = '#fc6';
-  pgCtx.fillText('● всеяд', x, y1); x += 55;
-  pgCtx.fillStyle = '#f44';
-  pgCtx.fillText('● хищн', x, y1); x += 55;
-  pgCtx.fillStyle = '#ca9';
-  pgCtx.fillText('● падаль', x, y1); x += 62;
-  pgCtx.fillStyle = '#4a8';
-  pgCtx.fillText('● деревья', x, y1);
-
-  // Текущие значения
-  const y2 = 16;
-  x = 4;
-  pgCtx.fillStyle = '#6c9';
-  pgCtx.fillText(popHistory.herb[popHistory.herb.length - 1] || 0, x + 6, y2); x += 55;
-  pgCtx.fillStyle = '#fc6';
-  pgCtx.fillText(popHistory.omni[popHistory.omni.length - 1] || 0, x + 6, y2); x += 55;
-  pgCtx.fillStyle = '#f44';
-  pgCtx.fillText(popHistory.pred[popHistory.pred.length - 1] || 0, x + 6, y2); x += 55;
-  pgCtx.fillStyle = '#ca9';
-  pgCtx.fillText(popHistory.scav[popHistory.scav.length - 1] || 0, x + 6, y2); x += 62;
-  pgCtx.fillStyle = '#4a8';
-  pgCtx.fillText(popHistory.trees[popHistory.trees.length - 1] || 0, x + 6, y2);
-
-  // Max справа
-  pgCtx.textAlign = 'right';
   pgCtx.fillStyle = '#666';
-  pgCtx.fillText('max ' + Math.round(maxVal), W - 4, 4);
-  pgCtx.textAlign = 'left';
+  pgCtx.fillText('max ' + Math.round(maxVal), 4, 4);
 }
 
 let popTimer = 0;
@@ -2375,36 +2580,42 @@ function updatePopHistory(dt) {
     popHistory.scav.push(s);
     popHistory.trees.push(world.trees.length);
     while (popHistory.herb.length > popHistory.maxLen) {
-      popHistory.herb.shift();
-      popHistory.omni.shift();
-      popHistory.pred.shift();
-      popHistory.scav.shift();
+      popHistory.herb.shift(); popHistory.omni.shift();
+      popHistory.pred.shift(); popHistory.scav.shift();
       popHistory.trees.shift();
     }
   }
 }
 
 // ================================================================
-// УПРАВЛЕНИЕ
+// ТАЧ-УПРАВЛЕНИЕ
 // ================================================================
 let selection = [];
 let dragSelect = null;
 let draggingCell = null;
 let dragOffset = { x: 0, y: 0 };
+let selectMode = false;   // режим выделения рамкой
+let selectModeStart = null;
 
 let touchState = {
-  mode: null, startX: 0, startY: 0,
+  mode: null,       // 'tap', 'pan', 'drag_cell', 'long', 'select_drag', 'pinch'
+  startX: 0, startY: 0,
   startCamera: { x: 0, y: 0 },
   pinchDist: 0, pinchZoom: 1,
-  cell: null, tapStartTime: 0,
+  cell: null,
+  startTime: 0,
+  moved: false,
+  longTimer: null,
+  lastTapTime: 0,
+  lastTapCell: null,
 };
 
-function findCellAt(wx, wy) {
+function findCellAt(wx, wy, extraPadding = 0) {
+  const pad = extraPadding + (isMobile ? TOUCH_PADDING : 3);
   for (let i = world.cells.length - 1; i >= 0; i--) {
     const c = world.cells[i];
     if (!c.alive) continue;
-    const r = c.radius + (isMobile ? 8 : 3);
-    if (Math.hypot(c.x - wx, c.y - wy) <= r) return c;
+    if (Math.hypot(c.x - wx, c.y - wy) <= c.radius + pad) return c;
   }
   return null;
 }
@@ -2414,6 +2625,7 @@ function getCanvasPos(e) {
   return { sx: e.clientX - r.left, sy: e.clientY - r.top };
 }
 
+// === МЫШЬ (для десктопа) ===
 canvas.addEventListener('mousedown', e => {
   if (e.button === 1 || e.button === 2) return;
   const { sx, sy } = getCanvasPos(e);
@@ -2431,23 +2643,20 @@ canvas.addEventListener('mousedown', e => {
 });
 
 canvas.addEventListener('mousemove', e => {
-  if (!canvas.matches(':hover')) return;
   const { sx, sy } = getCanvasPos(e);
   const w = screenToWorld(sx, sy);
   const cell = findCellAt(w.x, w.y);
-  const tip = document.getElementById('tooltip');
-  if (cell && !dragSelect && !draggingCell && !isMobile) {
-    tip.style.display = 'block';
-    tip.style.left = (e.clientX - canvas.getBoundingClientRect().left + 12) + 'px';
-    tip.style.top = (e.clientY - canvas.getBoundingClientRect().top + 12) + 'px';
-    const mood = cell.memory.mood();
-    const moodStr = mood > 0.2 ? '😊' : mood < -0.2 ? '😟' : '😐';
-    const flags = (cell.infected ? '🦠' : '') + (cell.carryingSeed ? '🌱' : '') +
-                  (cell.caringFor ? '👶' : '') + (cell.group ? '👥' : '') +
-                  (cell.pack ? '🐺' : '') + (cell.isScavenger ? '🥩' : '');
-    tip.textContent = `${moodStr}${flags} gen ${cell.generation} | hp ${cell.hp.toFixed(0)} | e ${cell.energy.toFixed(0)}`;
-  } else tip.style.display = 'none';
-
+  if (!isMobile) {
+    const tip = document.getElementById('tooltip');
+    if (cell && !dragSelect && !draggingCell) {
+      tip.style.display = 'block';
+      tip.style.left = (e.clientX - canvas.getBoundingClientRect().left + 12) + 'px';
+      tip.style.top = (e.clientY - canvas.getBoundingClientRect().top + 12) + 'px';
+      const mood = cell.memory.mood();
+      const moodStr = mood > 0.2 ? '😊' : mood < -0.2 ? '😟' : '😐';
+      tip.textContent = `${moodStr} gen ${cell.generation} | hp ${cell.hp.toFixed(0)} | e ${cell.energy.toFixed(0)}`;
+    } else tip.style.display = 'none';
+  }
   if (dragSelect) { dragSelect.x2 = sx; dragSelect.y2 = sy; }
   if (draggingCell) {
     draggingCell.x = Math.max(draggingCell.radius, Math.min(world.w - draggingCell.radius, w.x + dragOffset.x));
@@ -2466,6 +2675,7 @@ canvas.addEventListener('mouseup', e => {
     } else selection = inRect;
     dragSelect = null;
     updateSelectionUI();
+    updateSelectedChips();
   }
   draggingCell = null;
 });
@@ -2473,8 +2683,7 @@ canvas.addEventListener('mouseup', e => {
 canvas.addEventListener('wheel', e => {
   e.preventDefault();
   const r = canvas.getBoundingClientRect();
-  const sx = e.clientX - r.left;
-  const sy = e.clientY - r.top;
+  const sx = e.clientX - r.left, sy = e.clientY - r.top;
   const before = screenToWorld(sx, sy);
   camera.zoom = Math.max(0.15, Math.min(3, camera.zoom * (e.deltaY > 0 ? 0.9 : 1.1)));
   const after = screenToWorld(sx, sy);
@@ -2502,26 +2711,66 @@ canvas.addEventListener('mousedown', e => {
   }
 });
 
+// === ТАЧ (Android Chrome) ===
+function cancelLongPress() {
+  if (touchState.longTimer) {
+    clearTimeout(touchState.longTimer);
+    touchState.longTimer = null;
+  }
+}
+
 canvas.addEventListener('touchstart', e => {
   e.preventDefault();
   const touches = e.touches;
   const r = canvas.getBoundingClientRect();
+
   if (touches.length === 2) {
+    cancelLongPress();
     const dx = touches[0].clientX - touches[1].clientX;
     const dy = touches[0].clientY - touches[1].clientY;
     touchState.mode = 'pinch';
     touchState.pinchDist = Math.hypot(dx, dy);
     touchState.pinchZoom = camera.zoom;
-  } else if (touches.length === 1) {
+    touchState.startTime = Date.now();
+    return;
+  }
+
+  if (touches.length === 1) {
     const sx = touches[0].clientX - r.left;
     const sy = touches[0].clientY - r.top;
     const w = screenToWorld(sx, sy);
     const cell = findCellAt(w.x, w.y);
+
     touchState.startX = sx;
     touchState.startY = sy;
     touchState.startCamera = { x: camera.x, y: camera.y };
-    touchState.tapStartTime = Date.now();
+    touchState.startTime = Date.now();
     touchState.cell = cell;
+    touchState.moved = false;
+
+    // Режим выделения рамкой
+    if (selectMode) {
+      touchState.mode = 'select_drag';
+      selectModeStart = { sx, sy, wx: w.x, wy: w.y };
+      dragSelect = { x1: sx, y1: sy, x2: sx, y2: sy };
+      return;
+    }
+
+    // Долгий тап — контекстное меню или драг
+    cancelLongPress();
+    touchState.longTimer = setTimeout(() => {
+      if (touchState.moved) return;
+      if (cell) {
+        // Долгий тап по клетке — контекстное меню
+        showContextMenu(sx, sy, cell);
+        touchState.mode = 'menu';
+      } else {
+        // Долгий тап по пустому — включить режим выделения
+        toggleSelectMode(true);
+        touchState.mode = 'select_start';
+      }
+    }, LONG_TAP_DURATION);
+
     touchState.mode = cell ? 'tap_cell' : 'maybe_pan';
   }
 }, { passive: false });
@@ -2530,6 +2779,7 @@ canvas.addEventListener('touchmove', e => {
   e.preventDefault();
   const touches = e.touches;
   const r = canvas.getBoundingClientRect();
+
   if (touches.length === 2 && touchState.mode === 'pinch') {
     const dx = touches[0].clientX - touches[1].clientX;
     const dy = touches[0].clientY - touches[1].clientY;
@@ -2544,20 +2794,39 @@ canvas.addEventListener('touchmove', e => {
     camera.x += before.x - after.x;
     camera.y += before.y - after.y;
     if (followCell) followCell = null;
-  } else if (touches.length === 1) {
+    return;
+  }
+
+  if (touches.length === 1) {
     const sx = touches[0].clientX - r.left;
     const sy = touches[0].clientY - r.top;
     const dx = sx - touchState.startX;
     const dy = sy - touchState.startY;
     const dist = Math.hypot(dx, dy);
-    if (dist > 10) {
-      if (touchState.mode === 'tap_cell') {
+
+    if (dist > 8) {
+      touchState.moved = true;
+      cancelLongPress();
+
+      // Режим выделения — рисуем рамку
+      if (touchState.mode === 'select_drag' || touchState.mode === 'select_start') {
+        touchState.mode = 'select_drag';
+        dragSelect.x2 = sx;
+        dragSelect.y2 = sy;
+        return;
+      }
+
+      // Драг клетки
+      if (touchState.mode === 'tap_cell' && touchState.cell) {
         touchState.mode = 'drag_cell';
         const w = screenToWorld(touchState.startX, touchState.startY);
         dragOffset = { x: touchState.cell.x - w.x, y: touchState.cell.y - w.y };
         draggingCell = touchState.cell;
-      } else touchState.mode = 'pan';
+      } else if (touchState.mode === 'maybe_pan') {
+        touchState.mode = 'pan';
+      }
     }
+
     if (touchState.mode === 'pan') {
       camera.x = touchState.startCamera.x - dx / camera.zoom;
       camera.y = touchState.startCamera.y - dy / camera.zoom;
@@ -2573,30 +2842,279 @@ canvas.addEventListener('touchmove', e => {
 
 canvas.addEventListener('touchend', e => {
   e.preventDefault();
-  const dt = Date.now() - touchState.tapStartTime;
-  if (touchState.mode === 'tap_cell' && dt < 300) {
-    selection = [touchState.cell];
+  cancelLongPress();
+  const dt = Date.now() - touchState.startTime;
+
+  // Режим выделения — завершаем
+  if (touchState.mode === 'select_drag' && dragSelect) {
+    const w1 = screenToWorld(Math.min(dragSelect.x1, dragSelect.x2), Math.min(dragSelect.y1, dragSelect.y2));
+    const w2 = screenToWorld(Math.max(dragSelect.x1, dragSelect.x2), Math.max(dragSelect.y1, dragSelect.y2));
+    const inRect = world.cells.filter(c => c.alive && c.x >= w1.x && c.x <= w2.x && c.y >= w1.y && c.y <= w2.y);
+    for (const c of inRect) if (!selection.includes(c)) selection.push(c);
+    dragSelect = null;
     updateSelectionUI();
-    document.getElementById('ui').classList.add('open');
+    updateSelectedChips();
+    showToast(`Выделено ${selection.length} клеток`);
+    toggleSelectMode(false);
+    touchState.mode = null;
+    return;
   }
+
+  // Долгий тап сработал — не считаем как тап
+  if (touchState.mode === 'menu' || touchState.mode === 'select_start') {
+    touchState.mode = null;
+    return;
+  }
+
+  // Обычный тап
+  if (touchState.mode === 'tap_cell' && dt < TAP_MAX_DURATION && !touchState.moved && touchState.cell) {
+    // Проверка на двойной тап
+    const now = Date.now();
+    if (now - touchState.lastTapTime < DOUBLE_TAP_WINDOW && touchState.lastTapCell === touchState.cell) {
+      // Двойной тап — следить
+      followCell = touchState.cell;
+      document.getElementById('fab-follow').classList.add('active');
+      showToast('🎯 Слежение: включено');
+      touchState.lastTapTime = 0;
+    } else {
+      // Одиночный тап — выбрать
+      selection = [touchState.cell];
+      updateSelectionUI();
+      updateSelectedChips();
+      showCellCard(touchState.cell);
+      touchState.lastTapTime = now;
+      touchState.lastTapCell = touchState.cell;
+    }
+  } else if (touchState.mode === 'maybe_pan' && dt < TAP_MAX_DURATION && !touchState.moved) {
+    // Тап по пустому — снять выделение
+    if (selection.length > 0) {
+      selection = [];
+      updateSelectionUI();
+      updateSelectedChips();
+    }
+    hideCellCard();
+  }
+
   touchState.mode = null;
   draggingCell = null;
 }, { passive: false });
 
-let lastTapTime = 0;
-canvas.addEventListener('touchstart', e => {
-  if (e.touches.length === 1) {
-    const now = Date.now();
-    if (now - lastTapTime < 300) {
-      const r = canvas.getBoundingClientRect();
-      const sx = e.touches[0].clientX - r.left;
-      const sy = e.touches[0].clientY - r.top;
-      const w = screenToWorld(sx, sy);
-      const cell = findCellAt(w.x, w.y);
-      if (!cell) document.getElementById('ui').classList.toggle('open');
-    }
-    lastTapTime = now;
+// ================================================================
+// ВЫДЕЛЕНИЕ РАМКОЙ
+// ================================================================
+function toggleSelectMode(on) {
+  selectMode = on !== undefined ? on : !selectMode;
+  const btn = document.getElementById('fab-select');
+  const hint = document.getElementById('select-mode-hint');
+  if (selectMode) {
+    btn.classList.add('active');
+    hint.classList.add('show');
+  } else {
+    btn.classList.remove('active');
+    hint.classList.remove('show');
   }
+}
+
+// ================================================================
+// КОНТЕКСТНОЕ МЕНЮ
+// ================================================================
+function showContextMenu(sx, sy, cell) {
+  const menu = document.getElementById('context-menu');
+  menu.innerHTML = `
+    <button onclick="ctxFollow()"><span class="ico">🎯</span> Следить</button>
+    <button onclick="ctxInfo()"><span class="ico">📋</span> Подробнее</button>
+    <button onclick="ctxEdit()"><span class="ico">✏️</span> Редактировать</button>
+    <button onclick="ctxKill()"><span class="ico">🗑</span> Удалить</button>
+  `;
+  menu._cell = cell;
+  menu.style.left = Math.min(sx, canvas.clientWidth - 200) + 'px';
+  menu.style.top = Math.min(sy, canvas.clientHeight - 240) + 'px';
+  menu.classList.add('show');
+  // Авто-закрытие через 5 секунд
+  setTimeout(() => menu.classList.remove('show'), 5000);
+}
+
+window.ctxFollow = function() {
+  const menu = document.getElementById('context-menu');
+  if (menu._cell) {
+    followCell = menu._cell;
+    document.getElementById('fab-follow').classList.add('active');
+    showToast('🎯 Слежение: включено');
+  }
+  menu.classList.remove('show');
+};
+
+window.ctxInfo = function() {
+  const menu = document.getElementById('context-menu');
+  if (menu._cell) {
+    selection = [menu._cell];
+    updateSelectionUI();
+    updateSelectedChips();
+    showCellCard(menu._cell);
+    document.getElementById('ui').classList.add('open');
+  }
+  menu.classList.remove('show');
+};
+
+window.ctxEdit = function() {
+  const menu = document.getElementById('context-menu');
+  if (menu._cell) {
+    selection = [menu._cell];
+    updateSelectionUI();
+    document.getElementById('ui').classList.add('open');
+    // Скролл к генам
+    setTimeout(() => {
+      document.getElementById('geneEditor').scrollIntoView({ behavior: 'smooth' });
+    }, 300);
+  }
+  menu.classList.remove('show');
+};
+
+window.ctxKill = function() {
+  const menu = document.getElementById('context-menu');
+  if (menu._cell) {
+    menu._cell.alive = false;
+    showToast('Клетка удалена');
+  }
+  menu.classList.remove('show');
+};
+
+// Закрытие меню при тапе мимо
+document.addEventListener('touchstart', e => {
+  const menu = document.getElementById('context-menu');
+  if (menu.classList.contains('show') && !menu.contains(e.target)) {
+    menu.classList.remove('show');
+  }
+}, { passive: true });
+
+// ================================================================
+// КАРТОЧКА КЛЕТКИ
+// ================================================================
+function showCellCard(cell) {
+  const card = document.getElementById('cell-card');
+  const dietLabel = cell.isHerbivore ? '🌱 Травоядное' : cell.isPredator ? (cell.isScavenger ? '🥩 Падальщик' : '🦁 Хищник') : '🍽 Всеядное';
+  const hpPct = Math.round(cell.hp / cell.g.maxHp * 100);
+  const ePct = Math.round(cell.energy / cell.g.maxEnergy * 100);
+  const flags = [];
+  if (cell.infected) flags.push('🦠');
+  if (cell.carryingSeed) flags.push('🌱');
+  if (cell.caringFor) flags.push('👶');
+  if (cell.group) flags.push('👥');
+  if (cell.pack) flags.push('🐺');
+
+  card.innerHTML = `
+    <div class="card-header">
+      <div class="portrait" style="background: hsl(${cell.g.hue}, 65%, 40%)"></div>
+      <div class="info">
+        <div class="title">${dietLabel}</div>
+        <div class="subtitle">Поколение ${cell.generation} ${flags.join(' ')}</div>
+      </div>
+    </div>
+    <div class="stats-row">
+      <div class="stat"><div class="label">HP</div><div class="value">${hpPct}%</div></div>
+      <div class="stat"><div class="label">Энергия</div><div class="value">${ePct}%</div></div>
+      <div class="stat"><div class="label">Радиус</div><div class="value">${cell.g.radius.toFixed(0)}</div></div>
+    </div>
+    <div class="actions">
+      <button onclick="cardFollow()">🎯 Следить</button>
+      <button onclick="cardEdit()">✏️ Гены</button>
+      <button class="danger" onclick="cardClose()">✕</button>
+    </div>
+  `;
+  card._cell = cell;
+  card.classList.add('show');
+}
+
+window.cardFollow = function() {
+  const card = document.getElementById('cell-card');
+  if (card._cell) {
+    followCell = card._cell;
+    document.getElementById('fab-follow').classList.add('active');
+    showToast('🎯 Слежение: включено');
+  }
+  card.classList.remove('show');
+};
+window.cardEdit = function() {
+  document.getElementById('ui').classList.add('open');
+  setTimeout(() => {
+    document.getElementById('geneEditor').scrollIntoView({ behavior: 'smooth' });
+  }, 300);
+};
+window.cardClose = function() {
+  document.getElementById('cell-card').classList.remove('show');
+};
+
+function hideCellCard() {
+  document.getElementById('cell-card').classList.remove('show');
+}
+
+// ================================================================
+// СПИСОК ВЫДЕЛЕННЫХ
+// ================================================================
+function updateSelectedChips() {
+  const list = document.getElementById('selected-list');
+  selection = selection.filter(c => c.alive);
+  if (selection.length <= 1) {
+    list.classList.remove('show');
+    return;
+  }
+  list.classList.add('show');
+  list.innerHTML = selection.slice(0, 8).map(c => `
+    <div class="selected-chip" onclick="focusSelected(${c.id})">
+      <div class="dot" style="background: hsl(${c.g.hue}, 65%, 50%)"></div>
+      <div class="text">gen ${c.generation} · ${Math.round(c.hp)}hp</div>
+    </div>
+  `).join('');
+  if (selection.length > 8) {
+    list.innerHTML += `<div class="selected-chip"><div class="text">+${selection.length - 8} ещё</div></div>`;
+  }
+}
+
+window.focusSelected = function(id) {
+  const cell = selection.find(c => c.id === id);
+  if (cell) {
+    camera.x = cell.x;
+    camera.y = cell.y;
+    followCell = null;
+  }
+};
+
+// ================================================================
+// ТОСТЫ
+// ================================================================
+let toastTimer = null;
+function showToast(text) {
+  const toast = document.getElementById('toast');
+  toast.textContent = text;
+  toast.classList.add('show');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
+// ================================================================
+// BOTTOM SHEET — свайпы
+// ================================================================
+const uiEl = document.getElementById('ui');
+const uiHandle = document.getElementById('ui-handle');
+
+let handleDragStart = 0;
+let handleStartY = 0;
+
+uiHandle.addEventListener('touchstart', e => {
+  handleDragStart = e.touches[0].clientY;
+  uiEl.style.transition = 'none';
+}, { passive: true });
+
+uiHandle.addEventListener('touchmove', e => {
+  const dy = e.touches[0].clientY - handleDragStart;
+  if (dy > 0) uiEl.style.transform = `translateY(${dy}px)`;
+}, { passive: true });
+
+uiHandle.addEventListener('touchend', e => {
+  const dy = e.changedTouches[0].clientY - handleDragStart;
+  uiEl.style.transition = '';
+  uiEl.style.transform = '';
+  if (dy > 100) uiEl.classList.remove('open');
 }, { passive: true });
 
 // ================================================================
@@ -2627,21 +3145,18 @@ function updateSelectionUI() {
     const c = selection[0];
     const dietLabel = c.isHerbivore ? '🌱 Травоядное' : c.isPredator ? (c.isScavenger ? '🥩 Падальщик' : '🦁 Хищник') : '🍽 Всеядное';
     const flags = [];
-    if (c.infected) flags.push(`<span style="color:#6f6">🦠${c.diseaseTimer.toFixed(0)}с</span>`);
-    if (c.carryingSeed) flags.push(`<span style="color:#8f8">🌱</span>`);
-    if (c.caringFor && c.caringFor.alive) flags.push(`<span style="color:#6cf">👶${c.careTimer.toFixed(0)}с</span>`);
-    if (c.group) flags.push(`<span style="color:#fc6">👥${c.group.cells.length}</span>`);
-    if (c.pack) flags.push(`<span style="color:#f44">🐺${c.pack.cells.length}${c.pack.alpha === c ? '★' : ''}</span>`);
+    if (c.infected) flags.push(`🦠${c.diseaseTimer.toFixed(0)}с`);
+    if (c.carryingSeed) flags.push('🌱');
+    if (c.caringFor && c.caringFor.alive) flags.push(`👶${c.careTimer.toFixed(0)}с`);
+    if (c.group) flags.push(`👥${c.group.cells.length}`);
+    if (c.pack) flags.push(`🐺${c.pack.cells.length}${c.pack.alpha === c ? '★' : ''}`);
     selectionInfo.innerHTML = `
       <div class="row"><span>Тип</span><span>${dietLabel}</span></div>
       <div class="row"><span>Поколение</span><span>${c.generation}</span></div>
       <div class="row"><span>HP / E</span><span>${c.hp.toFixed(0)} / ${c.energy.toFixed(0)}</span></div>
       <div style="margin-top:4px">${flags.join(' ')}</div>
     `;
-    renderMind(c);
-    renderInstincts(c);
-    renderGenetics(c);
-    renderGroup(c);
+    renderMind(c); renderInstincts(c); renderGenetics(c); renderGroup(c);
     if (c.isPredator) renderHunter(c);
     else hunterPanel.textContent = '— (не хищник)';
   } else {
@@ -2659,7 +3174,7 @@ function renderHunter(c) {
   const style = c.g.huntStyle < 0.3 ? '🏃 Гонщик' : c.g.huntStyle > 0.7 ? '🤫 Засадник' : '⚡ Универсал';
   const prey = c.g.preyPreference < 0.3 ? '🌱 Травоядные' : c.g.preyPreference > 0.7 ? '🦁 Хищники' : '🍽 Всеядные';
   const scavenger = c.g.scavenger > 0.6 ? '🥩 Падальщик' : c.g.scavenger > 0.3 ? '🍖 Иногда' : '🎯 Охотник';
-  const pack = c.pack ? `🐺 Стая #${c.pack.id} (${c.pack.cells.length})${c.pack.alpha === c ? ' ★АЛЬФА' : ''}` : '— одиночка';
+  const pack = c.pack ? `🐺 Стая #${c.pack.id} (${c.pack.cells.length})${c.pack.alpha === c ? ' ★' : ''}` : '— одиночка';
   hunterPanel.innerHTML = `
     <div class="row"><span>Стиль</span><span>${style}</span></div>
     <div class="row"><span>Добыча</span><span>${prey}</span></div>
@@ -2667,7 +3182,6 @@ function renderHunter(c) {
     <div class="row"><span>Риск</span><span>${(c.g.riskTolerance*100).toFixed(0)}%</span></div>
     <div class="row"><span>Стая</span><span>${pack}</span></div>
     <div class="row"><span>Территории</span><span>${c.huntingMemory.spots.length}</span></div>
-    <div class="row"><span>Помнит врагов</span><span>${c.huntingMemory.enemies.length}</span></div>
   `;
 }
 
@@ -2739,8 +3253,8 @@ function renderGenetics(c) {
   const dietLabel = c.g.diet < 0.3 ? '🌱' : c.g.diet > 0.7 ? '🦁' : '🍽';
   geneticsPanel.innerHTML = `
     <div class="row"><span>Диета</span><span>${dietLabel} ${c.g.diet.toFixed(2)}</span></div>
-    <div class="row"><span>Инбред</span><span style="color:${c.inbreeding > 0.5 ? '#c8f' : '#8a8a9a'}">${(c.inbreeding*100).toFixed(0)}%</span></div>
-    <div class="row"><span>Иммунитет</span><span style="color:#6f6">${(c.g.immunity*100).toFixed(0)}%</span></div>
+    <div class="row"><span>Инбред</span><span>${(c.inbreeding*100).toFixed(0)}%</span></div>
+    <div class="row"><span>Иммунитет</span><span>${(c.g.immunity*100).toFixed(0)}%</span></div>
     <div class="row"><span>Экономия</span><span>${(c.g.frugality*100).toFixed(0)}%</span></div>
   `;
 }
@@ -2793,7 +3307,7 @@ function renderSpeciesStats() {
   ];
   speciesStats.innerHTML = items.map(it => `
     <div class="species-stat">
-      <span class="dot" style="background:${it.color}"></div>
+      <span class="dot" style="background:${it.color}"></span>
       <span class="name">${it.name}</span>
       <span class="val">${it.val} (${(it.val/total*100).toFixed(0)}%)</span>
       <div class="bar-wrap">
@@ -2801,6 +3315,12 @@ function renderSpeciesStats() {
       </div>
     </div>
   `).join('');
+
+  // Top bar quick stats
+  document.getElementById('q-herb').textContent = herb;
+  document.getElementById('q-omni').textContent = omni;
+  document.getElementById('q-pred').textContent = pred;
+  document.getElementById('q-scav').textContent = scav;
 }
 
 // ================================================================
@@ -2823,7 +3343,7 @@ function loop(now) {
     autosaveTimer += dt;
     if (autosaveTimer > 30) {
       autosaveTimer = 0;
-      try { localStorage.setItem('evolutio_v11_autosave', JSON.stringify(serializeWorld())); } catch (e) {}
+      try { localStorage.setItem('evolutio_v12_autosave', JSON.stringify(serializeWorld())); } catch (e) {}
     }
   }
   draw();
@@ -2836,7 +3356,7 @@ function loop(now) {
     fpsCounter = 0; fpsTimer = 0;
   }
 
-  if (Math.floor(now / 200) !== Math.floor((now - rawDt * 1000) / 200)) {
+  if (Math.floor(now / 250) !== Math.floor((now - rawDt * 1000) / 250)) {
     updateStats();
     renderSpeciesStats();
     if (selection.length) updateSelectionUI();
@@ -2856,6 +3376,8 @@ function updateStats() {
   document.getElementById('statSick').textContent = sick;
   document.getElementById('statFps').textContent = fps;
   document.getElementById('statBD').textContent = world.births + '/' + world.deaths;
+  document.getElementById('q-fps').textContent = fps;
+  document.getElementById('top-day').textContent = world.isDay ? '☀' : '🌙';
 }
 
 function serializeWorld() {
@@ -2878,11 +3400,49 @@ function serializeWorld() {
 }
 
 // ================================================================
-// КНОПКИ — СПАВН ПО ВИДАМ
+// КНОПКИ И UI
 // ================================================================
-function spawnAt(genome, count = 1) {
+document.getElementById('top-menu').addEventListener('click', () => {
+  document.getElementById('ui').classList.toggle('open');
+});
+
+document.getElementById('fab-pause').addEventListener('click', e => {
+  paused = !paused;
+  e.target.textContent = paused ? '▶' : '⏸';
+  e.target.classList.toggle('active', paused);
+  document.getElementById('btnPause').textContent = paused ? '▶ Продолжить' : '⏸ Пауза';
+  showToast(paused ? '⏸ Пауза' : '▶ Продолжение');
+});
+
+document.getElementById('fab-follow').addEventListener('click', e => {
+  if (followCell) {
+    followCell = null;
+    e.target.classList.remove('active');
+    showToast('🎯 Слежение: выключено');
+  } else if (selection.length === 1) {
+    followCell = selection[0];
+    e.target.classList.add('active');
+    showToast('🎯 Слежение: включено');
+  } else {
+    showToast('Выберите одну клетку');
+  }
+});
+
+document.getElementById('fab-select').addEventListener('click', () => {
+  toggleSelectMode();
+  showToast(selectMode ? '🔲 Режим выделения: ВКЛ' : '🔲 Режим выделения: ВЫКЛ');
+});
+
+document.getElementById('fab-spawn').addEventListener('click', () => {
+  document.getElementById('ui').classList.add('open');
+  setTimeout(() => {
+    document.querySelector('.spawn-grid').scrollIntoView({ behavior: 'smooth' });
+  }, 300);
+});
+
+function spawnAt(genomeFactory, count = 1) {
   for (let i = 0; i < count; i++) {
-    const c = new Cell(genome(), randomBrain(),
+    const c = new Cell(genomeFactory(), randomBrain(),
       camera.x + (Math.random() - 0.5) * 200,
       camera.y + (Math.random() - 0.5) * 200);
     world.addCell(c);
@@ -2901,7 +3461,8 @@ function makeGenome(diet, extra = {}) {
 document.getElementById('btnPause').addEventListener('click', e => {
   paused = !paused;
   e.target.textContent = paused ? '▶ Продолжить' : '⏸ Пауза';
-  e.target.classList.toggle('active', paused);
+  document.getElementById('fab-pause').textContent = paused ? '▶' : '⏸';
+  document.getElementById('fab-pause').classList.toggle('active', paused);
 });
 
 document.getElementById('btnReset').addEventListener('click', () => {
@@ -2914,152 +3475,97 @@ document.getElementById('btnReset').addEventListener('click', () => {
   for (const k in popHistory) if (Array.isArray(popHistory[k])) popHistory[k] = [];
   selection = []; followCell = null;
   for (let i = 0; i < 80; i++) {
-    world.trees.push(new Tree(
-      50 + Math.random() * (WORLD_W - 100),
-      50 + Math.random() * (WORLD_H - 100)
-    ));
+    world.trees.push(new Tree(50 + Math.random() * (WORLD_W - 100), 50 + Math.random() * (WORLD_H - 100)));
   }
-  // Стартовые: по 5 каждого вида
   for (let i = 0; i < 8; i++) {
-    const c = new Cell(randomGenome(0.2), randomBrain(),
-      200 + Math.random() * (WORLD_W - 400),
-      200 + Math.random() * (WORLD_H - 400));
-    world.addCell(c);
+    world.addCell(new Cell(randomGenome(0.2), randomBrain(), 200 + Math.random() * (WORLD_W - 400), 200 + Math.random() * (WORLD_H - 400)));
   }
   for (let i = 0; i < 5; i++) {
-    const c = new Cell(randomGenome(0.5), randomBrain(),
-      200 + Math.random() * (WORLD_W - 400),
-      200 + Math.random() * (WORLD_H - 400));
-    world.addCell(c);
+    world.addCell(new Cell(randomGenome(0.5), randomBrain(), 200 + Math.random() * (WORLD_W - 400), 200 + Math.random() * (WORLD_H - 400)));
   }
   for (let i = 0; i < 4; i++) {
-    const g = randomGenome(0.9);
-    g.diet = 0.9;
-    g.aggression = 0.8;
-    g.predation = 0.9;
-    const c = new Cell(g, randomBrain(),
-      200 + Math.random() * (WORLD_W - 400),
-      200 + Math.random() * (WORLD_H - 400));
-    world.addCell(c);
+    const g = randomGenome(0.9); g.aggression = 0.8; g.predation = 0.9;
+    world.addCell(new Cell(g, randomBrain(), 200 + Math.random() * (WORLD_W - 400), 200 + Math.random() * (WORLD_H - 400)));
   }
-  updateSelectionUI(); updateStats();
+  updateSelectionUI(); updateStats(); updateSelectedChips();
 });
 
 document.getElementById('btnFollow').addEventListener('click', e => {
   if (selection.length === 1) {
     followCell = selection[0];
-    e.target.classList.toggle('active', true);
+    document.getElementById('fab-follow').classList.add('active');
   } else {
     followCell = null;
-    e.target.classList.remove('active');
+    document.getElementById('fab-follow').classList.remove('active');
   }
 });
 
 document.getElementById('btnCenter').addEventListener('click', () => {
-  camera.x = WORLD_W / 2;
-  camera.y = WORLD_H / 2;
+  camera.x = WORLD_W / 2; camera.y = WORLD_H / 2;
   followCell = null;
+  document.getElementById('fab-follow').classList.remove('active');
 });
 
-// === СПАВН ПО ВИДАМ ===
-document.getElementById('btnSpawnHerb').addEventListener('click', () => {
-  spawnAt(makeGenome(0.15 + Math.random() * 0.1), 3);
-});
-
-document.getElementById('btnSpawnOmni').addEventListener('click', () => {
-  spawnAt(makeGenome(0.4 + Math.random() * 0.2), 3);
-});
-
-document.getElementById('btnSpawnPred').addEventListener('click', () => {
-  spawnAt(() => {
-    const g = randomGenome(0.85 + Math.random() * 0.1);
-    g.aggression = 0.6 + Math.random() * 0.3;
-    g.predation = 0.7 + Math.random() * 0.3;
-    g.huntStyle = Math.random();
-    g.preyPreference = Math.random() * 0.5;
-    g.riskTolerance = 0.3 + Math.random() * 0.4;
-    g.scavenger = Math.random() * 0.2;
-    g.packDrive = 0.4 + Math.random() * 0.4;
-    return g;
-  }, 2);
-});
-
-document.getElementById('btnSpawnScav').addEventListener('click', () => {
-  spawnAt(() => {
-    const g = randomGenome(0.75);
-    g.scavenger = 0.85;
-    g.aggression = 0.3 + Math.random() * 0.2;
-    g.predation = 0.4;
-    g.diet = 0.7;
-    g.packDrive = 0.5;
-    return g;
-  }, 2);
-});
-
+document.getElementById('btnSpawnHerb').addEventListener('click', () => spawnAt(makeGenome(0.15 + Math.random() * 0.1), 3));
+document.getElementById('btnSpawnOmni').addEventListener('click', () => spawnAt(makeGenome(0.4 + Math.random() * 0.2), 3));
+document.getElementById('btnSpawnPred').addEventListener('click', () => spawnAt(() => {
+  const g = randomGenome(0.85 + Math.random() * 0.1);
+  g.aggression = 0.6 + Math.random() * 0.3; g.predation = 0.7 + Math.random() * 0.3;
+  g.huntStyle = Math.random(); g.preyPreference = Math.random() * 0.5;
+  g.riskTolerance = 0.3 + Math.random() * 0.4; g.scavenger = Math.random() * 0.2;
+  g.packDrive = 0.4 + Math.random() * 0.4;
+  return g;
+}, 2));
+document.getElementById('btnSpawnScav').addEventListener('click', () => spawnAt(() => {
+  const g = randomGenome(0.75);
+  g.scavenger = 0.85; g.aggression = 0.3 + Math.random() * 0.2;
+  g.predation = 0.4; g.diet = 0.7; g.packDrive = 0.5;
+  return g;
+}, 2));
 document.getElementById('btnSpawnPack').addEventListener('click', () => {
-  // Спавним рядом 3-х хищников с высоким packDrive
   const baseX = camera.x, baseY = camera.y;
   for (let i = 0; i < 3; i++) {
     const g = randomGenome(0.9);
-    g.diet = 0.9;
-    g.aggression = 0.7;
-    g.predation = 0.8;
-    g.packDrive = 0.9;
-    g.dominance = i === 0 ? 0.9 : 0.3 + Math.random() * 0.2;
+    g.diet = 0.9; g.aggression = 0.7; g.predation = 0.8;
+    g.packDrive = 0.9; g.dominance = i === 0 ? 0.9 : 0.3 + Math.random() * 0.2;
     g.hue = (baseX * 0.01) % 360 + Math.random() * 20;
-    const c = new Cell(g, randomBrain(), baseX + (Math.random() - 0.5) * 60, baseY + (Math.random() - 0.5) * 60);
-    world.addCell(c);
+    world.addCell(new Cell(g, randomBrain(), baseX + (Math.random() - 0.5) * 60, baseY + (Math.random() - 0.5) * 60));
   }
   updateStats();
 });
-
-document.getElementById('btnSpawnAmbush').addEventListener('click', () => {
-  spawnAt(() => {
-    const g = randomGenome(0.9);
-    g.diet = 0.9;
-    g.aggression = 0.7;
-    g.predation = 0.9;
-    g.huntStyle = 0.9;
-    g.speed = 1.5;
-    g.senseRange = 180;
-    g.riskTolerance = 0.5;
-    return g;
-  }, 2);
-});
-
+document.getElementById('btnSpawnAmbush').addEventListener('click', () => spawnAt(() => {
+  const g = randomGenome(0.9);
+  g.diet = 0.9; g.aggression = 0.7; g.predation = 0.9;
+  g.huntStyle = 0.9; g.speed = 1.5; g.senseRange = 180; g.riskTolerance = 0.5;
+  return g;
+}, 2));
 document.getElementById('btnSpawnRandom').addEventListener('click', () => {
   for (let i = 0; i < 10; i++) {
-    const dietBias = Math.random();
-    const c = new Cell(randomGenome(dietBias), randomBrain(),
+    world.addCell(new Cell(randomGenome(Math.random()), randomBrain(),
       camera.x + (Math.random() - 0.5) * 400,
-      camera.y + (Math.random() - 0.5) * 400);
-    world.addCell(c);
+      camera.y + (Math.random() - 0.5) * 400));
   }
   updateStats();
 });
-
 document.getElementById('btnDelete').addEventListener('click', () => {
   for (const c of selection) c.alive = false;
   selection = [];
-  updateSelectionUI();
+  updateSelectionUI(); updateSelectedChips();
 });
-
 document.getElementById('btnAddTree').addEventListener('click', () => {
   if (world.trees.length >= MAX_TREES) return;
   world.trees.push(new Tree(camera.x, camera.y));
   updateStats();
 });
-
 document.getElementById('btnSave').addEventListener('click', () => {
   try {
-    localStorage.setItem('evolutio_v11_save', JSON.stringify(serializeWorld()));
-    alert('Сохранено: ' + world.cells.length + ' клеток');
-  } catch (e) { alert('Ошибка: ' + e.message); }
+    localStorage.setItem('evolutio_v12_save', JSON.stringify(serializeWorld()));
+    showToast('💾 Сохранено');
+  } catch (e) { showToast('Ошибка: ' + e.message); }
 });
-
 document.getElementById('btnLoad').addEventListener('click', () => {
-  const raw = localStorage.getItem('evolutio_v11_save') || localStorage.getItem('evolutio_v11_autosave');
-  if (!raw) { alert('Нет сохранения'); return; }
+  const raw = localStorage.getItem('evolutio_v12_save') || localStorage.getItem('evolutio_v12_autosave');
+  if (!raw) { showToast('Нет сохранения'); return; }
   try {
     const data = JSON.parse(raw);
     world.cells = []; world.food = []; world.trees = []; world.seeds = [];
@@ -3089,8 +3595,9 @@ document.getElementById('btnLoad').addEventListener('click', () => {
       world.seeds.push(s);
     }
     selection = []; followCell = null;
-    updateSelectionUI(); updateStats();
-  } catch (e) { alert('Ошибка: ' + e.message); }
+    updateSelectionUI(); updateStats(); updateSelectedChips();
+    showToast('📂 Загружено');
+  } catch (e) { showToast('Ошибка: ' + e.message); }
 });
 
 document.getElementById('speed').addEventListener('input', e => {
@@ -3106,46 +3613,30 @@ document.getElementById('mutStr').addEventListener('input', e => {
   document.getElementById('mutStrVal').textContent = world.mutStr.toFixed(2);
 });
 
+document.getElementById('top-day').addEventListener('click', () => {
+  world.dayPhase = world.dayPhase < 0.5 ? 0.5 : 0;
+  world.isDay = world.dayPhase < 0.5;
+});
+
 // ================================================================
 // СТАРТ
 // ================================================================
 for (let i = 0; i < 100; i++) {
-  world.trees.push(new Tree(
-    100 + Math.random() * (WORLD_W - 200),
-    100 + Math.random() * (WORLD_H - 200)
-  ));
+  world.trees.push(new Tree(100 + Math.random() * (WORLD_W - 200), 100 + Math.random() * (WORLD_H - 200)));
 }
-// Стартовая популяция: микс всех видов
 for (let i = 0; i < 12; i++) {
-  const c = new Cell(randomGenome(0.15 + Math.random() * 0.1), randomBrain(),
-    200 + Math.random() * (WORLD_W - 400),
-    200 + Math.random() * (WORLD_H - 400));
-  world.addCell(c);
+  world.addCell(new Cell(randomGenome(0.15 + Math.random() * 0.1), randomBrain(), 200 + Math.random() * (WORLD_W - 400), 200 + Math.random() * (WORLD_H - 400)));
 }
 for (let i = 0; i < 8; i++) {
-  const c = new Cell(randomGenome(0.4 + Math.random() * 0.2), randomBrain(),
-    200 + Math.random() * (WORLD_W - 400),
-    200 + Math.random() * (WORLD_H - 400));
-  world.addCell(c);
+  world.addCell(new Cell(randomGenome(0.4 + Math.random() * 0.2), randomBrain(), 200 + Math.random() * (WORLD_W - 400), 200 + Math.random() * (WORLD_H - 400)));
 }
 for (let i = 0; i < 5; i++) {
-  const g = randomGenome(0.9);
-  g.aggression = 0.7;
-  g.predation = 0.8;
-  g.packDrive = 0.6;
-  const c = new Cell(g, randomBrain(),
-    200 + Math.random() * (WORLD_W - 400),
-    200 + Math.random() * (WORLD_H - 400));
-  world.addCell(c);
+  const g = randomGenome(0.9); g.aggression = 0.7; g.predation = 0.8; g.packDrive = 0.6;
+  world.addCell(new Cell(g, randomBrain(), 200 + Math.random() * (WORLD_W - 400), 200 + Math.random() * (WORLD_H - 400)));
 }
 for (let i = 0; i < 2; i++) {
-  const g = randomGenome(0.75);
-  g.scavenger = 0.85;
-  g.diet = 0.7;
-  const c = new Cell(g, randomBrain(),
-    200 + Math.random() * (WORLD_W - 400),
-    200 + Math.random() * (WORLD_H - 400));
-  world.addCell(c);
+  const g = randomGenome(0.75); g.scavenger = 0.85; g.diet = 0.7;
+  world.addCell(new Cell(g, randomBrain(), 200 + Math.random() * (WORLD_W - 400), 200 + Math.random() * (WORLD_H - 400)));
 }
 
 updateStats();
